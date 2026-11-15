@@ -5,6 +5,11 @@
 <p class="dim" id="st"></p>
 <button id="up">update now</button>
 <div id="lists"></div>
+<div class="sec">MY RULES</div>
+<p class="dim">Your own block and allow lists win over every filter list (a site also covers its sub-domains).</p>
+<div class="row"><input id="ruleHost" placeholder="example.com" style="flex:1;background:#ddd;color:#000;border:0;padding:10px;font-size:16px"></div>
+<button id="addBlock">block</button> <button class="o" id="addAllow">allow</button>
+<div id="myBlock"></div><div id="myAllow"></div>
 <div class="sec">MY FILTERS</div>
 <p class="dim">One rule per line, uBlock Origin / Adblock Plus syntax, e.g. <code>||ads.example.com^</code> or <code>example.com##.banner</code>.</p>
 <textarea id="custom" rows="8" spellcheck="false"></textarea>

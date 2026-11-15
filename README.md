@@ -53,6 +53,10 @@ lines; visited-site names are withheld), and controls Groveguard with the broadc
 - **18+ blocking** (extension 1.2): *Adult content (18+)* lists — OISD NSFW and The Block List Project porn list
   (AdGuard has no downloadable adult list; its adult blocking is the AdGuard DNS Family service). Off by default;
   matching sites get a full-page "18+ site blocked" screen and adult content embedded in other pages is blocked.
+- **Logs and your own rules** (extension 1.3): a logger page (popup → logs) lists recent pages and requests with
+  blocked/allowed and why (filter lists, 18+ list, dangerous-site list, your rules, site paused), filterable and
+  searchable, with *always block* / *always allow* per site. *My rules* (filter lists page) win over every list and
+  cover sub-domains; a site you block shows a "site blocked" page. Logs stay in memory only.
 - **VirusTotal**: optional, with your free API key. New apps, risky new downloads and shared files that the local database
   didn't flag are looked up by SHA-256 (only the fingerprint is sent); flagged by N+ engines → threat. Rate-limited to the
   free key (4/min, 500/day).

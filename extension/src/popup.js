@@ -22,4 +22,5 @@ $('blocking').onchange = e => send({ blocking: e.target.checked });
 $('danger').onchange = e => send({ danger: e.target.checked });
 $('pause').onchange = e => { if (host) send({ pause: { host, on: e.target.checked } }); };
 $('up').onclick = () => { $('st').textContent = 'Updating all lists…'; send({ update: true }); };
+$('logs').onclick = () => { api.tabs.create({ url: api.runtime.getURL('logger.html') }); window.close(); };
 $('lists').onclick = () => { api.runtime.openOptionsPage ? api.runtime.openOptionsPage() : api.tabs.create({ url: 'options.html' }); };

@@ -3,7 +3,7 @@ const api = typeof browser !== 'undefined' ? browser : chrome;
 const $ = id => document.getElementById(id);
 let first = true;
 function send(m) { api.runtime.sendMessage(m, show); }
-function show(r) {
+let show = function (r) {
   if (!r) return;
   $('st').textContent = r.rules.toLocaleString() + ' filters active · last update ' + (r.lastUpdate ? new Date(r.lastUpdate).toLocaleString() : 'never')
     + (r.errors && r.errors.length ? ' · failed: ' + r.errors.join('; ') : '');
@@ -32,7 +32,22 @@ function show(r) {
       b.appendChild(row);
     }
   }
+};
+function rules(r) {
+  for (const [id, arr, label] of [['myBlock', r.settings.myBlock, 'blocked'], ['myAllow', r.settings.myAllow, 'allowed']]) {
+    const b = $(id); b.textContent = '';
+    for (const h of arr) {
+      const row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = '<span><b></b><small></small></span><button class="o">remove</button>';
+      row.querySelector('b').textContent = h; row.querySelector('small').textContent = label + ' by you';
+      row.querySelector('button').onclick = () => send({ rule: { host: h, list: 'none' } });
+      b.appendChild(row);
+    }
+  }
 }
+const _show = show; show = r => { _show(r); if (r && r.settings) rules(r); };
+$('addBlock').onclick = () => { send({ rule: { host: $('ruleHost').value, list: 'block' } }); $('ruleHost').value = ''; };
+$('addAllow').onclick = () => { send({ rule: { host: $('ruleHost').value, list: 'allow' } }); $('ruleHost').value = ''; };
 $('up').onclick = () => { $('st').textContent = 'Updating all lists…'; send({ update: true }); };
 $('apply').onclick = () => send({ custom: $('custom').value });
 send({});

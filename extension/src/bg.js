@@ -5,6 +5,14 @@ const DANGER = 'https://maintainteam.github.io/HypatiaDatabases/hypatia-domains-
 const DAY = 24 * 3600 * 1000;
 let bloom = null, rules = null, adult = null, loading = null;
 const counts = new Map(); // tabId -> blocked requests on the current page
+const LOG = []; const LOG_MAX = 1000; // recent requests, newest last (kept in memory only)
+function log(type, url, page, verdict, why) {
+  let host = ''; try { host = new URL(url).hostname; } catch (e) { }
+  LOG.push({ t: Date.now(), type, host, url: url.length > 300 ? url.slice(0, 300) + '…' : url, page: page || '', verdict, why: why || '' });
+  if (LOG.length > LOG_MAX) LOG.splice(0, LOG.length - LOG_MAX);
+}
+/** host or a parent of it is in the list */
+function inList(list, host) { return !!host && !!list && list.some(p => host === p || host.endsWith('.' + p)); }
 
 // ---------------------------------------------------------------- storage (IndexedDB)
 function db() {
@@ -29,6 +37,8 @@ async function settings() {
   if (s.blocking === undefined) s.blocking = true;
   if (s.danger === undefined) s.danger = true;
   if (!s.paused) s.paused = [];
+  if (!s.myBlock) s.myBlock = [];
+  if (!s.myAllow) s.myAllow = [];
   if (!s.allowed) s.allowed = [];
   if (s.custom === undefined) s.custom = '';
   return s;
@@ -107,28 +117,42 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
   try {
     await ensure();
     const s = cache || await settings();
+    if (inList(s.myAllow, u.hostname)) { log('page', details.url, '', 'allowed', 'your allow list'); return; }
+    if (inList(s.myBlock, u.hostname)) {
+      log('page', details.url, '', 'blocked', 'your block list');
+      api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?r=you&h=' + encodeURIComponent(u.hostname) });
+      return;
+    }
     if (adult && !pausedOn(u.hostname) && shouldBlock(adult, u.hostname, u.pathname + u.search, null, details.url)) {
+      log('page', details.url, '', 'blocked', '18+ list');
       api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(u.hostname) });
       return;
     }
-    if (!s.danger || !bloom) return;
+    if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); return; }
     const hit = listed(bloom, u.hostname, s.allowed);
-    if (!hit) return;
+    if (!hit) { log('page', details.url, '', 'allowed', ''); return; }
+    log('page', details.url, '', 'blocked', 'dangerous-site list');
     api.tabs.update(details.tabId, { url: api.runtime.getURL('warning.html') + '?u=' + encodeURIComponent(details.url) + '&l=' + encodeURIComponent(hit) });
   } catch (e) { }
 });
 
 // everything inside pages: ads, trackers, malware (blocking needs the rules in memory)
 api.webRequest.onBeforeRequest.addListener(d => {
-  if (!rules || !cache || !cache.blocking || d.type === 'main_frame') return {};
+  if (!cache || d.type === 'main_frame') return {};
   const page = hostOf(d.documentUrl || d.originUrl || d.initiator || '');
-  if (pausedOn(page)) return {};
   let u; try { u = new URL(d.url); } catch (e) { return {}; }
   if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'ws:' && u.protocol !== 'wss:') return {};
-  if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url) || (adult && shouldBlock(adult, u.hostname, u.pathname, page, null))) {
+  const block = why => {
     if (d.tabId >= 0) { counts.set(d.tabId, (counts.get(d.tabId) || 0) + 1); badge(d.tabId); }
+    log(d.type, d.url, page, 'blocked', why);
     return { cancel: true };
-  }
+  };
+  if (inList(cache.myAllow, u.hostname)) { log(d.type, d.url, page, 'allowed', 'your allow list'); return {}; }
+  if (inList(cache.myBlock, u.hostname)) return block('your block list');
+  if (!rules || !cache.blocking || pausedOn(page)) { log(d.type, d.url, page, 'allowed', pausedOn(page) ? 'site paused' : ''); return {}; }
+  if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) return block('filter lists');
+  if (adult && shouldBlock(adult, u.hostname, u.pathname, page, null)) return block('18+ list');
+  log(d.type, d.url, page, 'allowed', '');
   return {};
 }, { urls: ['<all_urls>'] }, ['blocking']);
 
@@ -161,6 +185,16 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
     if (m.pause) { const i = s.paused.indexOf(m.pause.host); if (m.pause.on && i < 0) s.paused.push(m.pause.host); if (!m.pause.on && i >= 0) s.paused.splice(i, 1); await save(s); }
     if (m.custom !== undefined) { s.custom = m.custom; await save(s); await rebuild(); }
     if (m.unallow) { s.allowed = s.allowed.filter(x => x !== m.unallow); await save(s); }
+    if (m.rule) { // { host, list: 'block'|'allow'|'none' } — your own rules, stronger than every filter list
+      const h = String(m.rule.host || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[\/:].*$/, '').replace(/^\*\./, '');
+      if (h) {
+        s.myBlock = s.myBlock.filter(x => x !== h); s.myAllow = s.myAllow.filter(x => x !== h);
+        if (m.rule.list === 'block') s.myBlock.push(h); else if (m.rule.list === 'allow') s.myAllow.push(h);
+        await save(s);
+      }
+    }
+    if (m.clearLog) LOG.length = 0;
+    if (m.log) { await refreshCache(); return reply({ log: LOG.slice(-500).reverse(), myBlock: cache.myBlock, myAllow: cache.myAllow }); }
     let errors = [];
     if (m.update) errors = await updateAll(true);
     await refreshCache();
