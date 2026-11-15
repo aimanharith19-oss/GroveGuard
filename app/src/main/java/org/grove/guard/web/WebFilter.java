@@ -402,20 +402,97 @@ public final class WebFilter {
     }
 
     private static final LinkedList<Entry> LOG = new LinkedList<>();
+    private static final List<Entry> PENDING = new ArrayList<>();
+    private static volatile boolean logLoaded, flushScheduled;
+    private static final int LOG_KEEP = 3000;
     private static long lastNotify;
 
+    // the log is saved on the phone (web-log.jsonl), so it survives Android closing Groveguard in the background
+    private static File logFile() { Context c = App.ctx(); return c == null ? null : new File(c.getFilesDir(), "web-log.jsonl"); }
+
+    private static void loadLog() {
+        if (logLoaded) return;
+        synchronized (LOG) {
+            if (logLoaded) return;
+            logLoaded = true;
+            File f = logFile();
+            if (f == null || !f.exists()) return;
+            List<Entry> read = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(f), "UTF-8"))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    try {
+                        org.json.JSONObject o = new org.json.JSONObject(line);
+                        read.add(new Entry(o.optLong("t"), o.optString("y"), o.optString("h"), o.optString("u"), o.optString("p"), o.optBoolean("b"), o.optString("w"), o.optString("a")));
+                    } catch (Exception ignored) { }
+                }
+            } catch (Exception ignored) { }
+            for (Entry e : read) LOG.addFirst(e); // file is oldest first
+            while (LOG.size() > LOG_KEEP) LOG.removeLast();
+        }
+    }
+
+    private static void scheduleFlush() {
+        if (flushScheduled) return;
+        flushScheduled = true;
+        App.MAIN.postDelayed(new Runnable() {
+            @Override public void run() {
+                flushScheduled = false;
+                App.IO.execute(new Runnable() { @Override public void run() { flushLog(); } });
+            }
+        }, 2000);
+    }
+
+    private static void flushLog() {
+        File f = logFile();
+        if (f == null) return;
+        List<Entry> out;
+        synchronized (PENDING) { out = new ArrayList<>(PENDING); PENDING.clear(); }
+        if (out.isEmpty()) return;
+        synchronized (LOG) {
+            try (Writer w = new OutputStreamWriter(new FileOutputStream(f, true), "UTF-8")) {
+                for (Entry e : out) w.write(json(e) + "\n");
+            } catch (Exception ignored) { }
+            if (f.length() > LOG_KEEP * 2L * 400) { // rewrite with only the newest entries
+                File tmp = new File(f.getPath() + ".tmp");
+                try (Writer w = new OutputStreamWriter(new FileOutputStream(tmp), "UTF-8")) {
+                    List<Entry> keep = new ArrayList<>(LOG);
+                    for (int i = keep.size() - 1; i >= 0; i--) w.write(json(keep.get(i)) + "\n");
+                } catch (Exception ignored) { return; }
+                //noinspection ResultOfMethodCallIgnored
+                tmp.renameTo(f);
+            }
+        }
+    }
+
+    private static String json(Entry e) {
+        try {
+            return new org.json.JSONObject().put("t", e.time).put("y", e.type).put("h", e.host).put("u", e.url).put("p", e.page)
+                    .put("b", e.blocked).put("w", e.why).put("a", e.app).toString();
+        } catch (Exception x) { return "{}"; }
+    }
+
     static void log(Entry e) {
+        loadLog();
         synchronized (LOG) {
             LOG.addFirst(e);
-            while (LOG.size() > 1000) LOG.removeLast();
+            while (LOG.size() > LOG_KEEP) LOG.removeLast();
         }
+        synchronized (PENDING) { PENDING.add(e); }
+        scheduleFlush();
         long now = System.currentTimeMillis();
         if (now - lastNotify > 1500) { lastNotify = now; changed(); }
     }
 
-    public static List<Entry> log() { synchronized (LOG) { return new ArrayList<>(LOG); } }
+    public static List<Entry> log() { loadLog(); synchronized (LOG) { return new ArrayList<>(LOG); } }
 
-    public static void clearLog() { synchronized (LOG) { LOG.clear(); } changed(); }
+    public static void clearLog() {
+        loadLog();
+        synchronized (PENDING) { PENDING.clear(); }
+        synchronized (LOG) { LOG.clear(); File f = logFile(); if (f != null) //noinspection ResultOfMethodCallIgnored
+            f.delete(); }
+        changed();
+    }
 
     public static int blockedCount() { int n = 0; synchronized (LOG) { for (Entry e : LOG) if (e.blocked) n++; } return n; }
 }

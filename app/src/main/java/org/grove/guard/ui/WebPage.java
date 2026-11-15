@@ -128,7 +128,7 @@ public class WebPage {
         box.setBackground(new android.graphics.drawable.InsetDrawable(bb, Ui.dp(a, 1)));
         box.setPadding(Ui.dp(a, 8), Ui.dp(a, 4), Ui.dp(a, 8), Ui.dp(a, 4));
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                Math.round(a.getResources().getDisplayMetrics().heightPixels * 0.55f));
+                Math.round(a.getResources().getDisplayMetrics().heightPixels * 0.5f));
         blp.topMargin = Ui.dp(a, 8);
         box.setOnScrollChangeListener(new View.OnScrollChangeListener() {
             @Override public void onScrollChange(View v, int x, int y, int ox, int oy) { logScroll = y; }
@@ -151,15 +151,20 @@ public class WebPage {
             title.setTextColor(e.blocked ? p.danger : 0xFFFFFFFF);
             inner.addView(r);
         }
-        if (n > 0) {
-            TextView cnt = Ui.text(a, String.format(java.util.Locale.getDefault(), "%,d shown · newest first · scroll inside the box", Math.min(n, 500)), 12, p.sub);
+        if (n == 0) {
+            TextView empty = Ui.text(a, log.isEmpty() ? "Nothing yet. Pages and requests from Grove Launcher's browser — and from Firefox/Chromium once the extension is linked (history tab) — show up here as you browse."
+                    : "Nothing matches this filter.", 14, p.sub);
+            empty.setPadding(Ui.dp(a, 4), Ui.dp(a, 12), Ui.dp(a, 4), Ui.dp(a, 12));
+            inner.addView(empty);
+        }
+        {
+            TextView cnt = Ui.text(a, String.format(java.util.Locale.getDefault(), "%,d shown of %,d saved · newest first · scroll inside the box", Math.min(n, 500), log.size()), 12, p.sub);
             cnt.setPadding(0, Ui.dp(a, 6), 0, 0);
             lg.addView(cnt);
             lg.addView(box, blp);
             final int keep = logScroll;
             if (keep > 0) box.post(new Runnable() { @Override public void run() { box.scrollTo(0, keep); } });
         }
-        if (n == 0) lg.addView(Ui.text(a, "Nothing yet. Pages and requests from Grove Launcher's browser — and from Firefox/Chromium once the extension is linked (history tab) — show up here as you browse.", 14, p.sub));
         col.addView(lg);
 
         // filter lists
