@@ -6,6 +6,7 @@
 package org.grove.guard.ui;
 
 import android.app.Activity;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -26,6 +27,7 @@ public class WebPage {
     private final Activity a;
     private final Ui.Pal p;
     private String filter = "all";
+    private int logScroll; // where you were in the log box (kept when new entries arrive)
 
     public WebPage(Activity a) { this.a = a; this.p = Ui.pal(a); }
 
@@ -98,13 +100,39 @@ public class WebPage {
         for (int i = 0; i < ids.length; i++) {
             final String id = ids[i];
             chips.addView(Ui.chip(a, names[i], id.equals(filter), new View.OnClickListener() {
-                @Override public void onClick(View v) { filter = id; redraw(); }
+                @Override public void onClick(View v) { filter = id; logScroll = 0; redraw(); }
             }));
         }
         chips.addView(Ui.chip(a, "Clear", false, new View.OnClickListener() {
             @Override public void onClick(View v) { WebFilter.clearLog(); redraw(); }
         }));
         lg.addView(chips);
+        // the log scrolls inside its own box, so the rest of the tab stays short
+        final android.widget.ScrollView box = new android.widget.ScrollView(a);
+        box.setVerticalScrollBarEnabled(true);
+        box.setScrollbarFadingEnabled(false);
+        box.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        box.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View v, android.view.MotionEvent e) {
+                // keep the page (and the tab swipe) from stealing the scroll while your finger is in the log
+                if (e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN || e.getActionMasked() == android.view.MotionEvent.ACTION_MOVE)
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                return false;
+            }
+        });
+        final LinearLayout inner = Ui.col(a);
+        box.addView(inner);
+        GradientDrawable bb = new GradientDrawable();
+        bb.setColor(0x33000000);
+        bb.setStroke(Ui.dp(a, 1), 0x33FFFFFF);
+        box.setBackground(new android.graphics.drawable.InsetDrawable(bb, Ui.dp(a, 1)));
+        box.setPadding(Ui.dp(a, 8), Ui.dp(a, 4), Ui.dp(a, 8), Ui.dp(a, 4));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                Math.round(a.getResources().getDisplayMetrics().heightPixels * 0.55f));
+        blp.topMargin = Ui.dp(a, 8);
+        box.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+            @Override public void onScrollChange(View v, int x, int y, int ox, int oy) { logScroll = y; }
+        });
         List<WebFilter.Entry> log = WebFilter.log();
         int n = 0;
         DateFormat tf = DateFormat.getTimeInstance(DateFormat.MEDIUM);
@@ -112,7 +140,7 @@ public class WebPage {
             if ("blocked".equals(filter) && !e.blocked) continue;
             if ("allowed".equals(filter) && e.blocked) continue;
             if ("page".equals(filter) && !"page".equals(e.type)) continue;
-            if (++n > 150) break;
+            if (++n > 500) break;
             String sub = tf.format(new Date(e.time)) + " · " + e.type + (e.page.isEmpty() ? "" : " on " + e.page) + (e.why.isEmpty() ? "" : " · " + e.why);
             LinearLayout r = Ui.item(a, 0, (e.blocked ? "✕ " : "✓ ") + e.host, sub, null, new View.OnClickListener() {
                 @Override public void onClick(View v) { entryMenu(e); }
@@ -121,7 +149,15 @@ public class WebPage {
             title.setText((e.blocked ? "✕ " : "✓ ") + e.host); // keep the real host spelling
             title.setTextSize(18);
             title.setTextColor(e.blocked ? p.danger : 0xFFFFFFFF);
-            lg.addView(r);
+            inner.addView(r);
+        }
+        if (n > 0) {
+            TextView cnt = Ui.text(a, String.format(java.util.Locale.getDefault(), "%,d shown · newest first · scroll inside the box", Math.min(n, 500)), 12, p.sub);
+            cnt.setPadding(0, Ui.dp(a, 6), 0, 0);
+            lg.addView(cnt);
+            lg.addView(box, blp);
+            final int keep = logScroll;
+            if (keep > 0) box.post(new Runnable() { @Override public void run() { box.scrollTo(0, keep); } });
         }
         if (n == 0) lg.addView(Ui.text(a, "Nothing yet. Pages and requests from Grove Launcher's browser — and from Firefox/Chromium once the extension is linked (history tab) — show up here as you browse.", 14, p.sub));
         col.addView(lg);
