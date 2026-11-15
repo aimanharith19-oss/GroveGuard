@@ -407,8 +407,10 @@ public final class Ui {
                 GradientDrawable g = new GradientDrawable();
                 if (which == DialogInterface.BUTTON_POSITIVE) g.setColor(accent(c));
                 else { g.setColor(0); g.setStroke(dp(c, 2), 0xFFFFFFFF); }
-                b.setBackground(g);
+                // inset so the outline is drawn fully inside the button (the dialog's button bar clips its top edge)
+                b.setBackground(new android.graphics.drawable.InsetDrawable(g, dp(c, 3)));
                 b.setMinWidth(dp(c, 110));
+                if (b.getParent() instanceof ViewGroup) { ((ViewGroup) b.getParent()).setClipChildren(false); ((ViewGroup) b.getParent()).setClipToPadding(false); }
                 ViewGroup.LayoutParams blp = b.getLayoutParams();
                 if (blp instanceof ViewGroup.MarginLayoutParams) ((ViewGroup.MarginLayoutParams) blp).setMargins(dp(c, 6), dp(c, 6), dp(c, 6), dp(c, 10));
                 b.setLayoutParams(blp);
