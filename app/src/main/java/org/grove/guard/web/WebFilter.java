@@ -292,6 +292,7 @@ public final class WebFilter {
         host = host.toLowerCase(Locale.ROOT);
         Verdict v = decide(c, host, path, url, pageHost, main);
         log(new Entry(System.currentTimeMillis(), main ? "page" : (type == null ? "request" : type), host, url, pageHost, v.block, v.why, app));
+        if (main) WebHistory.add(c, host, url, v.block, v.why, app);
         return v;
     }
 

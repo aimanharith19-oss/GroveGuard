@@ -43,6 +43,11 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.7
+- **History tab**: every website opened in Grove Launcher's browser, in Firefox/Chromium with the extension, and every link you check — blocked or allowed, with why. Grouped by day, searchable, filter blocked/allowed; tap a visit to open it, always block/allow it, copy or delete it; clear the last hour, older than 1/7/30 days, or everything.
+- **Extension 1.4**: its own saved history page (popup › history), and it can send visits to the app: link it with the pairing code from Groveguard › history › link browser extension. Visits go only to the app on the same phone (127.0.0.1, code required); if the app isn't running they're kept and sent later.
+- History stays on the phone only (up to 50,000 visits in the app, 20,000 in the extension).
+
 ## What's new in 1.6
 - **Web tab** in the app: the same uBlock Origin / EasyList / AdGuard / 18+ filter lists as the extension (switch each on or off,
   daily auto-update), *Block ads & trackers* switch, **my rules** (block / allow a site, wins over every list), paused sites, and a

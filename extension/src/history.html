@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Groveguard history</title><link rel="stylesheet" href="wp.css">
+<style>.e{padding:8px 0;border-bottom:1px solid #222}.e .h{font-size:18px}.e .u{color:#8a8a8a;font-size:12px;word-break:break-all}
+.blk .h{color:#ff6b5b}.e button{font-size:14px;min-height:34px;padding:4px 12px;margin:6px 6px 0 0}
+.chips button{font-size:15px;min-height:36px;padding:4px 14px}.chips button.on{background:#60a917}.chips button:not(.on){background:transparent;border:1.5px solid #888}
+.day{font-size:24px;font-weight:300;margin:22px 0 4px;text-transform:lowercase}
+input.t{width:100%;box-sizing:border-box;margin-top:10px;background:#ddd;color:#000;border:0;padding:10px;font-size:16px}</style>
+</head><body><main>
+<div class="app">GROVEGUARD</div><h1>history</h1>
+<p class="dim" id="st"></p>
+<div class="chips"><button id="fAll" class="on">all</button><button id="fBlk">blocked</button><button id="fOk">allowed</button></div>
+<input class="t" id="q" placeholder="search sites or addresses">
+<p><button class="o" id="c1">clear last hour</button> <button class="o" id="c7">clear older than 7 days</button> <button class="o" id="call">clear all</button></p>
+<div id="list"></div>
+<p><button class="o" id="more" hidden>show more</button></p>
+<div class="sec">GROVEGUARD APP</div>
+<p class="dim">Show this history in the Groveguard app's history tab too. Open Groveguard › history › link browser extension, and type the code shown there.
+Visits go straight to the app on this phone (127.0.0.1) — never over the internet.</p>
+<input class="t" id="key" placeholder="pairing code" autocomplete="off" spellcheck="false">
+<p><button id="link">link</button> <button class="o" id="unlink">unlink</button></p>
+<p class="dim" id="appst"></p>
+</main><script src="history.js"></script></body></html>

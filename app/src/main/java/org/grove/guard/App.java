@@ -48,6 +48,7 @@ public class App extends Application {
         // Hypatia's old channel ids are not used any more
         try { nm.deleteNotificationChannel("DETECTION"); nm.deleteNotificationChannel("FOREGROUND"); } catch (Exception ignored) { }
         Firewall.onAppStart(this);
+        org.grove.guard.web.ExtSync.start(this);
     }
 
     public static Context ctx() { return app; }

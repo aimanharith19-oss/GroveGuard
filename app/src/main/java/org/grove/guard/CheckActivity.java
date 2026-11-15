@@ -159,6 +159,7 @@ public class CheckActivity extends Activity {
         for (final String h : shown) {
             WebCheck.Hit hit = WebCheck.check(this, h);
             boolean allowed = Prefs.set(this, Prefs.WEB_ALLOW).contains(h);
+            org.grove.guard.web.WebHistory.add(this, h, h, hit != null, hit != null ? "link check: dangerous-site list" : "link check", "Check a link");
             if (hit != null) bad++;
             LinearLayout r = Ui.row(this);
             r.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8));

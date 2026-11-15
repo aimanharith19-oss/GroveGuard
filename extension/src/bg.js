@@ -11,6 +11,46 @@ function log(type, url, page, verdict, why) {
   LOG.push({ t: Date.now(), type, host, url: url.length > 300 ? url.slice(0, 300) + '…' : url, page: page || '', verdict, why: why || '' });
   if (LOG.length > LOG_MAX) LOG.splice(0, LOG.length - LOG_MAX);
 }
+// ---------------------------------------------------------------- history (every website opened, kept in this browser) + sync to the Groveguard app
+const HIST_MAX = 20000;
+let HIST = null, histDirty = false, OUTBOX = null;
+const BROWSER = navigator.userAgent.includes('Firefox') ? 'Firefox' : navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chromium';
+async function histLoad() { if (!HIST) { HIST = (await kv('history')) || []; OUTBOX = (await kv('outbox')) || []; } }
+function visit(url, blocked, why) {
+  let host = ''; try { host = new URL(url).hostname; } catch (e) { return; }
+  const v = { t: Date.now(), h: host, u: url.length > 2000 ? url.slice(0, 2000) : url, b: !!blocked, w: why || '' };
+  histLoad().then(() => {
+    const last = HIST[HIST.length - 1];
+    if (last && last.u === v.u && v.t - last.t < 3000) return;
+    HIST.push(v); if (HIST.length > HIST_MAX) HIST.splice(0, HIST.length - HIST_MAX);
+    if (cache && cache.appKey) { OUTBOX.push(v); if (OUTBOX.length > 5000) OUTBOX.splice(0, OUTBOX.length - 5000); }
+    if (!histDirty) { histDirty = true; setTimeout(histFlush, 2000); }
+  });
+}
+async function histFlush() {
+  histDirty = false;
+  try { await kv('history', HIST); await kv('outbox', OUTBOX); } catch (e) { }
+  syncApp();
+}
+let syncing = false, appState = '';
+/** sends new visits to the Groveguard app on this phone (it listens only on 127.0.0.1, and needs the pairing code) */
+async function syncApp() {
+  if (syncing || !cache || !cache.appKey) return;
+  await histLoad();
+  syncing = true;
+  try {
+    while (OUTBOX.length) {
+      const batch = OUTBOX.slice(0, 200);
+      const r = await fetch('http://127.0.0.1:47913/v1/visits', { method: 'POST', cache: 'no-store', credentials: 'omit',
+        headers: { 'Content-Type': 'text/plain', 'X-Groveguard-Key': cache.appKey, 'X-Groveguard-Browser': BROWSER }, body: JSON.stringify(batch) });
+      if (r.status === 403) { appState = 'wrong code'; break; }
+      if (!r.ok) { appState = 'error ' + r.status; break; }
+      OUTBOX.splice(0, batch.length); appState = 'ok';
+      await kv('outbox', OUTBOX);
+    }
+  } catch (e) { appState = 'app not reachable'; }
+  syncing = false;
+}
 /** host or a parent of it is in the list */
 function inList(list, host) { return !!host && !!list && list.some(p => host === p || host.endsWith('.' + p)); }
 
@@ -117,21 +157,21 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
   try {
     await ensure();
     const s = cache || await settings();
-    if (inList(s.myAllow, u.hostname)) { log('page', details.url, '', 'allowed', 'your allow list'); return; }
+    if (inList(s.myAllow, u.hostname)) { log('page', details.url, '', 'allowed', 'your allow list'); visit(details.url, false, 'your allow list'); return; }
     if (inList(s.myBlock, u.hostname)) {
-      log('page', details.url, '', 'blocked', 'your block list');
+      log('page', details.url, '', 'blocked', 'your block list'); visit(details.url, true, 'your block list');
       api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?r=you&h=' + encodeURIComponent(u.hostname) });
       return;
     }
     if (adult && !pausedOn(u.hostname) && shouldBlock(adult, u.hostname, u.pathname + u.search, null, details.url)) {
-      log('page', details.url, '', 'blocked', '18+ list');
+      log('page', details.url, '', 'blocked', '18+ list'); visit(details.url, true, '18+ list');
       api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(u.hostname) });
       return;
     }
-    if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); return; }
+    if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); visit(details.url, false, ''); return; }
     const hit = listed(bloom, u.hostname, s.allowed);
-    if (!hit) { log('page', details.url, '', 'allowed', ''); return; }
-    log('page', details.url, '', 'blocked', 'dangerous-site list');
+    if (!hit) { log('page', details.url, '', 'allowed', ''); visit(details.url, false, ''); return; }
+    log('page', details.url, '', 'blocked', 'dangerous-site list'); visit(details.url, true, 'dangerous-site list');
     api.tabs.update(details.tabId, { url: api.runtime.getURL('warning.html') + '?u=' + encodeURIComponent(details.url) + '&l=' + encodeURIComponent(hit) });
   } catch (e) { }
 });
@@ -194,6 +234,18 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
       }
     }
     if (m.clearLog) LOG.length = 0;
+    if (m.history) { await histLoad(); return reply({ history: HIST.slice().reverse(), myBlock: s.myBlock, myAllow: s.myAllow, appKey: s.appKey || '', appState, pending: OUTBOX.length }); }
+    if (m.clearHistory !== undefined) { await histLoad(); const cut = m.clearHistory ? Date.now() - m.clearHistory : Infinity; HIST = m.clearHistory ? HIST.filter(v => v.t >= cut) : []; await kv('history', HIST); }
+    if (m.clearRecent) { await histLoad(); const cut = Date.now() - m.clearRecent; HIST = HIST.filter(v => v.t < cut); await kv('history', HIST); }
+    if (m.deleteVisit) { await histLoad(); HIST = HIST.filter(v => !(v.t === m.deleteVisit.t && v.u === m.deleteVisit.u)); await kv('history', HIST); }
+    if (m.appKey !== undefined) {
+      const k = String(m.appKey).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      s.appKey = k; await save(s); await refreshCache(); await histLoad();
+      if (k && m.sendAll) { OUTBOX = HIST.slice(-5000); await kv('outbox', OUTBOX); }
+      if (!k) { OUTBOX = []; await kv('outbox', OUTBOX); appState = ''; }
+      await syncApp();
+      return reply({ appState, pending: OUTBOX.length });
+    }
     if (m.log) { await refreshCache(); return reply({ log: LOG.slice(-500).reverse(), myBlock: cache.myBlock, myAllow: cache.myAllow }); }
     let errors = [];
     if (m.update) errors = await updateAll(true);
@@ -211,5 +263,7 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
 if (api.alarms) {
   api.alarms.create('update', { periodInMinutes: 60 * 6, delayInMinutes: 2 });
   api.alarms.onAlarm.addListener(a => { if (a.name === 'update') updateAll(false).then(refreshCache).catch(() => {}); });
+  api.alarms.create('sync', { periodInMinutes: 5 });
+  api.alarms.onAlarm.addListener(a => { if (a.name === 'sync') syncApp(); });
 }
 refreshCache().then(ensure).catch(() => {});

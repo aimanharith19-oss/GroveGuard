@@ -24,3 +24,4 @@ $('pause').onchange = e => { if (host) send({ pause: { host, on: e.target.checke
 $('up').onclick = () => { $('st').textContent = 'Updating all lists…'; send({ update: true }); };
 $('logs').onclick = () => { api.tabs.create({ url: api.runtime.getURL('logger.html') }); window.close(); };
 $('lists').onclick = () => { api.runtime.openOptionsPage ? api.runtime.openOptionsPage() : api.tabs.create({ url: 'options.html' }); };
+$('hist').onclick = () => { api.tabs.create({ url: api.runtime.getURL('history.html') }); window.close(); };

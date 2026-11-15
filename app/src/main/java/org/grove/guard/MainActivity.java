@@ -40,9 +40,10 @@ import java.util.List;
 /** The app: Protect, Firewall, Activity and Settings tabs. */
 public class MainActivity extends Activity implements Sigs.Listener, Scanner.Listener, Events.Listener, Firewall.Listener, Shizuku.Listener,
         org.grove.guard.web.WebFilter.Listener {
-    private static final String[] TABS = {"Protect", "Firewall", "Background", "Apps", "Activity", "Web"};
-    private static final int[] TAB_ICONS = {R.drawable.ic_shield, R.drawable.ic_wall, R.drawable.ic_sleep, R.drawable.ic_apps, R.drawable.ic_list, R.drawable.ic_globe};
-    static final int TAB_SETTINGS = 6;
+    private static final String[] TABS = {"Protect", "Firewall", "Background", "Apps", "Activity", "Web", "History"};
+    private static final int[] TAB_ICONS = {R.drawable.ic_shield, R.drawable.ic_wall, R.drawable.ic_sleep, R.drawable.ic_apps, R.drawable.ic_list, R.drawable.ic_globe, R.drawable.ic_history};
+    static final int TAB_SETTINGS = 7;
+    private org.grove.guard.ui.HistoryPage historyPage;
     private org.grove.guard.ui.WebPage webPage;
 
     private Ui.Pal p;
@@ -189,7 +190,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     @Override public void onEvent(Events.Event e) { if (tab == 4 || (tab == 0 && e != null && (Events.THREAT.equals(e.kind)))) show(); }
 
-    @Override public void onWebChanged() { if (tab == 5) show(); }
+    @Override public void onWebChanged() { if (tab == 5 || tab == 6) show(); }
 
     @Override public void onFirewallChanged() { if (tab == 1 && firewallPage != null) firewallPage.refreshHeader(); }
 
@@ -396,6 +397,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         if (tab == 0) buildProtect(col);
         else if (tab == 4) buildActivity(col);
         else if (tab == 5) { if (webPage == null) webPage = new org.grove.guard.ui.WebPage(this); webPage.build(col); }
+        else if (tab == 6) { if (historyPage == null) historyPage = new org.grove.guard.ui.HistoryPage(this); historyPage.build(col); }
         else { if (settingsPage == null) settingsPage = new SettingsPage(this); settingsPage.build(col); }
         content.removeAllViews();
         content.addView(sv);
