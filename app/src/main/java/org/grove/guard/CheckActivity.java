@@ -50,12 +50,12 @@ public class CheckActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { finish(); } });
         LinearLayout card = Ui.col(this);
-        card.setBackground(Ui.round(p.card, Ui.dp(this, 28)));
+        card.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.78f));
         card.setPadding(Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 14));
         card.setClickable(true);
         LinearLayout head = Ui.row(this);
         head.addView(Ui.badge(this, R.drawable.ic_shield_check, p.primary, p.container, 40));
-        TextView t = Ui.title(this, "Grove Guard", 18);
+        TextView t = Ui.title(this, "Grove Guard", 20);
         t.setPadding(Ui.dp(this, 12), 0, 0, 0);
         head.addView(t, Ui.lpW(1));
         card.addView(head);

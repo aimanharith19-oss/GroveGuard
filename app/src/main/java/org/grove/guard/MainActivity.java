@@ -45,7 +45,12 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     private Ui.Pal p;
     private FrameLayout content;
-    private LinearLayout nav;
+    private LinearLayout nav;          // bottom app bar
+    private LinearLayout pivot;        // pivot headers
+    private android.widget.HorizontalScrollView pivotScroll;
+    private TextView appLabel;
+    private LinearLayout menu;         // expanded app-bar menu
+    private int shownTab = -1;
     private int tab;
     private FirewallPage firewallPage;
     private org.grove.guard.ui.BackgroundPage backgroundPage;
@@ -60,17 +65,40 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         p = Ui.pal(this);
+        FrameLayout frame = new FrameLayout(this);
+        frame.setBackground(Ui.tintBackground(this, 0.38f));
         LinearLayout root = Ui.col(this);
-        root.setBackgroundColor(p.bg);
-        content = new FrameLayout(this);
+        // app name like Grove Launcher's title: plain 28sp, normal case
+        appLabel = Ui.text(this, "Grove Guard", 28, 0xFFFFFFFF);
+        appLabel.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
+        appLabel.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 4));
+        root.addView(appLabel);
+        pivotScroll = new android.widget.HorizontalScrollView(this);
+        pivotScroll.setHorizontalScrollBarEnabled(false);
+        pivotScroll.setFillViewport(true);
+        pivot = Ui.row(this);
+        pivot.setGravity(Gravity.CENTER);
+        pivot.setPadding(Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6));
+        pivotScroll.addView(pivot, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(pivotScroll);
+        content = new SwipeFrame(this);
         root.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         nav = Ui.row(this);
-        nav.setBackgroundColor(p.card);
-        nav.setPadding(Ui.dp(this, 8), Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6));
-        root.addView(nav, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.setFilterTouchesWhenObscured(true); // ignore taps while another app draws over us (tapjacking)
-        setContentView(root);
-        getWindow().setNavigationBarColor(p.card);
+        nav.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        nav.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.86f));
+        nav.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 6), 0);
+        root.addView(nav, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 56)));
+        frame.addView(root);
+        menu = Ui.col(this);
+        menu.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.78f));
+        menu.setPadding(Ui.dp(this, 24), Ui.dp(this, 14), Ui.dp(this, 24), Ui.dp(this, 70));
+        menu.setVisibility(View.GONE);
+        menu.setClickable(true);
+        frame.addView(menu, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        frame.setFilterTouchesWhenObscured(true); // ignore taps while another app draws over us (tapjacking)
+        setContentView(frame);
+        getWindow().setStatusBarColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.62f));
+        getWindow().setNavigationBarColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.86f));
         tab = b != null ? b.getInt("tab", 0) : getIntent().getIntExtra("tab", 0);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 && !Prefs.on(this, "asked_notif", false)) {
@@ -167,64 +195,167 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     public void openTab(int t) { if (t != tab) { if (t == TAB_SETTINGS) lastTab = tab; tab = t; show(); } }
 
     @Override public void onBackPressed() {
+        if (menu.getVisibility() == View.VISIBLE) { menu.setVisibility(View.GONE); return; }
         if (tab == TAB_SETTINGS) { tab = lastTab; show(); return; }
         super.onBackPressed();
     }
 
     /** Page title with the settings button on the right (all tabs). */
     public static View pageHeader(final Activity a, String title, String subtitle) {
-        Ui.Pal p = Ui.pal(a);
-        LinearLayout h = Ui.row(a);
-        h.setPadding(Ui.dp(a, 22), Ui.dp(a, 22), Ui.dp(a, 12), Ui.dp(a, 10));
-        LinearLayout t = Ui.col(a);
-        t.addView(Ui.title(a, title, 24));
-        t.addView(Ui.text(a, subtitle, 13, p.sub));
-        h.addView(t, Ui.lpW(1));
-        if (a instanceof MainActivity && ((MainActivity) a).tab != TAB_SETTINGS) {
-            FrameLayout g = new FrameLayout(a);
-            g.addView(Ui.icon(a, R.drawable.ic_settings, p.sub, 24), new FrameLayout.LayoutParams(Ui.dp(a, 24), Ui.dp(a, 24), Gravity.CENTER));
-            g.setBackground(Ui.ripple(a, 0, Ui.dp(a, 24)));
-            g.setContentDescription("Settings");
-            g.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { ((MainActivity) a).openTab(TAB_SETTINGS); } });
-            h.addView(g, new LinearLayout.LayoutParams(Ui.dp(a, 48), Ui.dp(a, 48)));
-        }
-        return h;
+        if (a instanceof MainActivity && ((MainActivity) a).tab == TAB_SETTINGS) return Ui.bigTitle(a, title);
+        TextView t = Ui.text(a, subtitle, 15, Ui.DIM);
+        t.setPadding(Ui.dp(a, 20), Ui.dp(a, 2), Ui.dp(a, 20), Ui.dp(a, 8));
+        return t;
     }
 
     // ---------------------------------------------------------------- tabs
 
     private void buildNav() {
-        nav.removeAllViews();
+        boolean settings = tab == TAB_SETTINGS;
+        appLabel.setVisibility(settings ? View.GONE : View.VISIBLE);
+        pivotScroll.setVisibility(settings ? View.GONE : View.VISIBLE);
+        pivot.removeAllViews();
+        View sel = null;
         for (int i = 0; i < TABS.length; i++) {
             final int idx = i;
+            // Grove Launcher tabs: the current one is a soft accent pill with bold accent text, the others plain grey text
             boolean on = i == tab;
-            LinearLayout b = Ui.col(this);
-            b.setGravity(Gravity.CENTER);
-            b.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-            FrameLayout pill = new FrameLayout(this);
-            pill.setBackground(Ui.round(on ? p.container : 0, Ui.dp(this, 16)));
-            ImageView ic = Ui.icon(this, TAB_ICONS[i], on ? p.onContainer : p.sub, 22);
-            FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(Ui.dp(this, 22), Ui.dp(this, 22), Gravity.CENTER);
-            pill.addView(ic, il);
-            LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(Ui.dp(this, 56), Ui.dp(this, 32));
-            pl.gravity = Gravity.CENTER_HORIZONTAL;
-            b.addView(pill, pl);
-            TextView t = Ui.text(this, TABS[i], 11.5f, on ? p.text : p.sub);
-            if (on) t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            t.setPadding(0, Ui.dp(this, 4), 0, 0);
-            t.setGravity(Gravity.CENTER_HORIZONTAL);
+            TextView t = Ui.text(this, TABS[i], 15, on ? Ui.accent(this) : Ui.DIM);
+            t.setTypeface(Typeface.create("sans-serif-medium", on ? Typeface.BOLD : Typeface.NORMAL));
+            t.setGravity(Gravity.CENTER);
             t.setSingleLine();
-            LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            tl.gravity = Gravity.CENTER_HORIZONTAL;
-            b.addView(t, tl);
-            b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { if (tab != idx) { tab = idx; show(); } } });
-            b.setContentDescription(TABS[i]);
-            b.setBackground(Ui.ripple(this, 0, Ui.dp(this, 16)));
-            nav.addView(b, Ui.lpW(1));
+            t.setMinWidth(Ui.dp(this, 64));
+            t.setPadding(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 9));
+            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+            pill.setCornerRadius(Ui.dp(this, 20));
+            pill.setColor(on ? Ui.alpha(Ui.accent(this), 0x2E / 255f) : 0);
+            t.setBackground(pill);
+            t.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { openTab(idx); } });
+            t.setContentDescription(TABS[i]);
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tlp.leftMargin = tlp.rightMargin = Ui.dp(this, 3);
+            pivot.addView(t, tlp);
+            if (i == tab) sel = t;
+        }
+        if (sel != null) { final View fs = sel; pivotScroll.post(new Runnable() { @Override public void run() { pivotScroll.smoothScrollTo(Math.max(0, fs.getLeft() - Ui.dp(MainActivity.this, 8)), 0); } }); }
+        // app bar: round outlined buttons and "•••"
+        nav.removeAllViews();
+        if (tab == 0) {
+            nav.addView(barButton(R.drawable.ic_search, "scan", new Runnable() { @Override public void run() { startScan(); } }));
+            nav.addView(barButton(R.drawable.ic_refresh, "update", new Runnable() { @Override public void run() { update(); } }));
+        }
+        if (!settings) nav.addView(barButton(R.drawable.ic_settings, "settings", new Runnable() { @Override public void run() { openTab(TAB_SETTINGS); } }));
+        TextView more = Ui.text(this, "\u2022\u2022\u2022", 20, 0xFFFFFFFF);
+        more.setGravity(Gravity.CENTER);
+        more.setContentDescription("More");
+        more.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { toggleMenu(); } });
+        nav.addView(more, new LinearLayout.LayoutParams(Ui.dp(this, 56), ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private View barButton(int icon, String label, final Runnable r) {
+        FrameLayout f = new FrameLayout(this);
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        g.setStroke(Ui.dp(this, 1.5f), 0xFFFFFFFF);
+        f.setBackground(g);
+        f.addView(Ui.icon(this, icon, 0xFFFFFFFF, 20), new FrameLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20), Gravity.CENTER));
+        f.setContentDescription(label);
+        f.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { menu.setVisibility(View.GONE); r.run(); } });
+        Ui.tilt(f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40));
+        lp.setMargins(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        f.setLayoutParams(lp);
+        return f;
+    }
+
+    private void toggleMenu() {
+        if (menu.getVisibility() == View.VISIBLE) { menu.setVisibility(View.GONE); return; }
+        menu.removeAllViews();
+        String[] items = {"settings", "check a link", "update database", "scan now", "clear activity"};
+        for (final String it : items) {
+            TextView t = Ui.text(this, it, 24, 0xFFFFFFFF);
+            t.setTypeface(Ui.light());
+            t.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 9));
+            t.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    menu.setVisibility(View.GONE);
+                    switch (it) {
+                        case "settings": openTab(TAB_SETTINGS); break;
+                        case "check a link": checkLinkPrompt(); break;
+                        case "update database": update(); break;
+                        case "scan now": startScan(); break;
+                        default: Events.clear(); if (tab == 4) show();
+                    }
+                }
+            });
+            Ui.tilt(t);
+            menu.addView(t);
+        }
+        menu.setVisibility(View.VISIBLE);
+        menu.setTranslationY(Ui.dp(this, 120));
+        menu.setAlpha(0f);
+        menu.animate().translationY(0).alpha(1f).setDuration(320).setInterpolator(Ui.WP_EASE).start();
+    }
+
+    void checkLinkPrompt() {
+        Ui.input(this, "Check a link", null, "example.com or https://…", "", new Ui.Cb<String>() {
+            @Override public void on(String s) {
+                if (s.isEmpty()) return;
+                startActivity(new Intent(MainActivity.this, CheckActivity.class).setAction(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, s));
+            }
+        });
+    }
+
+    /** Swipe left/right between pivot pages (vertical scrolling is untouched). */
+    private final class SwipeFrame extends FrameLayout {
+        private float x0, y0;
+        private boolean swiping;
+        private final int slop = android.view.ViewConfiguration.get(MainActivity.this).getScaledTouchSlop();
+
+        SwipeFrame(android.content.Context c) { super(c); }
+
+        @Override public boolean onInterceptTouchEvent(android.view.MotionEvent e) {
+            if (tab == TAB_SETTINGS) return false;
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN: x0 = e.getX(); y0 = e.getY(); swiping = false; break;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    float dx = e.getX() - x0, dy = e.getY() - y0;
+                    if (Math.abs(dx) > slop * 3 && Math.abs(dx) > Math.abs(dy) * 1.8f) { swiping = true; return true; }
+                    break;
+                default: break;
+            }
+            return false;
+        }
+
+        @Override public boolean onTouchEvent(android.view.MotionEvent e) {
+            if (!swiping) return true;
+            float dx = e.getX() - x0;
+            if (e.getActionMasked() == android.view.MotionEvent.ACTION_MOVE) {
+                if (getChildCount() > 0) getChildAt(0).setTranslationX(dx * 0.5f);
+            } else if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP || e.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) {
+                swiping = false;
+                int thr = Ui.dp(MainActivity.this, 70);
+                if (dx < -thr) openTab((tab + 1) % TABS.length);
+                else if (dx > thr) openTab((tab + TABS.length - 1) % TABS.length);
+                else if (getChildCount() > 0) getChildAt(0).animate().translationX(0).setDuration(200).setInterpolator(Ui.WP_EASE).start();
+            }
+            return true;
         }
     }
 
     public void recreateTab() { show(); }
+
+    /** Pivot transition: the new page slides in from the swipe direction, its items feathering in. Only when the tab changed. */
+    private void enter(View page, android.view.ViewGroup items) {
+        if (shownTab == tab) { page.setTranslationX(0); return; }
+        int dir = shownTab < 0 ? 1 : (tab == TAB_SETTINGS || tab > shownTab || (shownTab == TABS.length - 1 && tab == 0)) ? 1 : -1;
+        if (shownTab == 0 && tab == TABS.length - 1) dir = -1;
+        shownTab = tab;
+        page.setTranslationX(dir * Ui.dp(this, 60));
+        page.setAlpha(0f);
+        page.animate().translationX(0).alpha(1f).setDuration(380).setInterpolator(Ui.WP_EASE).start();
+        if (items != null) Ui.feather(items);
+    }
 
     void show() {
         buildNav();
@@ -232,6 +363,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         if (tab == 1) {
             if (firewallPage == null) firewallPage = new FirewallPage(this);
             if (firewallPage.view().getParent() != content) { content.removeAllViews(); content.addView(firewallPage.view()); }
+            enter(firewallPage.view(), null);
             firewallPage.refreshHeader();
             return;
         }
@@ -239,12 +371,14 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             if (backgroundPage == null) backgroundPage = new org.grove.guard.ui.BackgroundPage(this);
             else if (backgroundPage.view().getParent() != content) backgroundPage.reload();
             if (backgroundPage.view().getParent() != content) { content.removeAllViews(); content.addView(backgroundPage.view()); }
+            enter(backgroundPage.view(), null);
             return;
         }
         if (tab == 3) {
             if (appsPage == null) appsPage = new org.grove.guard.ui.AppsPage(this);
             else if (appsPage.view().getParent() != content) appsPage.reload();
             if (appsPage.view().getParent() != content) { content.removeAllViews(); content.addView(appsPage.view()); }
+            enter(appsPage.view(), null);
             return;
         }
         final ScrollView sv = new ScrollView(this);
@@ -261,19 +395,12 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         else { if (settingsPage == null) settingsPage = new SettingsPage(this); settingsPage.build(col); }
         content.removeAllViews();
         content.addView(sv);
+        enter(sv, col);
         final int y = keepScroll;
         if (y > 0) sv.post(new Runnable() { @Override public void run() { sv.scrollTo(0, y); } });
     }
 
-    private View header(String subtitle) {
-        LinearLayout h = (LinearLayout) pageHeader(this, "Grove Guard", subtitle);
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.mipmap.ic_launcher);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44));
-        lp.rightMargin = Ui.dp(this, 12);
-        h.addView(logo, 0, lp);
-        return h;
-    }
+    private View header(String subtitle) { return pageHeader(this, "Grove Guard", subtitle); }
 
     // ---------------------------------------------------------------- Protect
 

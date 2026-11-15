@@ -44,6 +44,31 @@ public class SettingsPage {
         this.col = col;
         col.addView(MainActivity.pageHeader(a, "Settings", "Back returns to where you were"));
 
+        // ---------------- accent colour (Windows Phone accents, as in Grove Music)
+        col.addView(Ui.section(a, "Accent colour"));
+        LinearLayout grid = Ui.col(a);
+        grid.setPadding(Ui.dp(a, 20), 0, Ui.dp(a, 20), Ui.dp(a, 4));
+        int curAccent = Ui.accent(a);
+        LinearLayout rowL = null;
+        for (int i = 0; i < Ui.ACCENTS.length; i++) {
+            if (i % 5 == 0) { rowL = Ui.row(a); grid.addView(rowL); }
+            final int color = Ui.ACCENTS[i];
+            View sw = new View(a);
+            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+            g.setColor(color);
+            if (color == curAccent) g.setStroke(Ui.dp(a, 3), 0xFFFFFFFF);
+            sw.setBackground(g);
+            sw.setContentDescription("Accent colour " + (i + 1));
+            sw.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { Prefs.sp(a).edit().putInt("accent", color).apply(); a.recreate(); }
+            });
+            Ui.tilt(sw);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(a, 56), Ui.dp(a, 56));
+            lp.setMargins(0, 0, Ui.dp(a, 8), Ui.dp(a, 8));
+            rowL.addView(sw, lp);
+        }
+        col.addView(grid);
+
         // ---------------- Shizuku
         col.addView(Ui.section(a, "Shizuku"));
         LinearLayout sz = Ui.card(a);
