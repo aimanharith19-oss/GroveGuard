@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -18,7 +18,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 
 /**
- * Who may read Grove Guard's status or control it.
+ * Who may read Groveguard's status or control it.
  * <ul>
  *   <li>Grove Launcher ({@code org.canopy.launcher}) is trusted, but only with the signing certificate it had the
  *       first time it connected (pinned; a different app reusing the package name is refused).</li>
@@ -33,7 +33,7 @@ public final class Trust {
 
     public static String mode(Context c) { return Prefs.str(c, CONTROL, "key"); }
 
-    /** Is the app behind this uid Grove Guard itself or the pinned Grove Launcher? */
+    /** Is the app behind this uid Groveguard itself or the pinned Grove Launcher? */
     public static boolean trustedUid(Context c, int uid) {
         if (uid == Process.myUid()) return true;
         String[] pkgs = c.getPackageManager().getPackagesForUid(uid);

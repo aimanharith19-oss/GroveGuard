@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Grove Guard</string>
-    <string name="web_service_label">Grove Guard web protection</string>
-    <string name="web_service_desc">Warns you when Firefox (or another browser) opens a site on Grove Guard\'s list of malware, phishing, tracker and ad domains, and can take you back automatically. It reads only the browser\'s address bar (and, if you turn it on in Grove Guard\'s settings, web addresses shown in other apps). Nothing it reads is stored or sent anywhere. While it\'s on, realtime file scanning also runs here, without a notification.</string>
-    <string name="check_link">Check with Grove Guard</string>
+    <string name="app_name">Groveguard</string>
+    <string name="web_service_label">Groveguard web protection</string>
+    <string name="web_service_desc">Warns you when Firefox (or another browser) opens a site on Groveguard\'s list of malware, phishing, tracker and ad domains, and can take you back automatically. It reads only the browser\'s address bar (and, if you turn it on in Groveguard\'s settings, web addresses shown in other apps). Nothing it reads is stored or sent anywhere. While it\'s on, realtime file scanning also runs here, without a notification.</string>
+    <string name="check_link">Check with Groveguard</string>
 </resources>

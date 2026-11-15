@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -78,7 +78,7 @@ public class PromptActivity extends Activity {
                             Detect.remove(a, t.id);
                             Events.add(Events.THREAT, "Deleted " + t.name(), t.path);
                             Ui.toast(a, "Deleted");
-                        } else Ui.toast(a, "Couldn't delete it — Grove Guard may not have access to that folder");
+                        } else Ui.toast(a, "Couldn't delete it — Groveguard may not have access to that folder");
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

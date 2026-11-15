@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.ui;
@@ -19,7 +19,7 @@ import org.grove.guard.Prefs;
 
 /**
  * App lock: fingerprint (or face) with your Android screen lock (PIN, pattern, password) as the alternative.
- * Uses Android's own BiometricPrompt / confirm-credential screen, so Grove Guard never sees your PIN or fingerprint.
+ * Uses Android's own BiometricPrompt / confirm-credential screen, so Groveguard never sees your PIN or fingerprint.
  */
 public final class Lock {
     private Lock() { }
@@ -71,7 +71,7 @@ public final class Lock {
 
     private static void biometric(final Activity a, String why, final Result r) {
         {
-            BiometricPrompt.Builder b = new BiometricPrompt.Builder(a).setTitle("Unlock Grove Guard").setSubtitle(why);
+            BiometricPrompt.Builder b = new BiometricPrompt.Builder(a).setTitle("Unlock Groveguard").setSubtitle(why);
             if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
             else //noinspection deprecation
                 b.setDeviceCredentialAllowed(true);
@@ -100,7 +100,7 @@ public final class Lock {
     @SuppressWarnings("deprecation")
     private static void confirmCredential(Activity a, String why, Result r) {
         KeyguardManager km = a.getSystemService(KeyguardManager.class);
-        Intent i = km.createConfirmDeviceCredentialIntent("Unlock Grove Guard", why);
+        Intent i = km.createConfirmDeviceCredentialIntent("Unlock Groveguard", why);
         if (i == null) { unlocked(); r.done(true); return; }
         pending = r;
         a.startActivityForResult(i, REQ);

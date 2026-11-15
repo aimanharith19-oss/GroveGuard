@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -11,7 +11,7 @@ import java.lang.reflect.Method;
 
 /**
  * Runs inside a shell (Shizuku) or root process, started with
- * {@code CLASSPATH=<Grove Guard apk> app_process /system/bin org.grove.guard.fw.Helper ...}.
+ * {@code CLASSPATH=<Groveguard apk> app_process /system/bin org.grove.guard.fw.Helper ...}.
  * It calls Android's per-app firewall directly, which the {@code cmd connectivity} tool can't do for the
  * mobile-data ("metered") chain. Uses only framework classes; nothing from the app is loaded.
  * <pre>

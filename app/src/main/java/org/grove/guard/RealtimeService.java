@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -36,7 +36,7 @@ public class RealtimeService extends Service {
             a.stopService(new Intent(a, RealtimeService.class));
         } else {
             try { a.startForegroundService(new Intent(a, RealtimeService.class)); }
-            catch (Exception e) { Events.add(Events.ERROR, "Couldn't start realtime scanning", "Open Grove Guard once, or turn on Web protection."); }
+            catch (Exception e) { Events.add(Events.ERROR, "Couldn't start realtime scanning", "Open Groveguard once, or turn on Web protection."); }
         }
         StatusProvider.changed(a);
         RealtimeTile.refresh(a);

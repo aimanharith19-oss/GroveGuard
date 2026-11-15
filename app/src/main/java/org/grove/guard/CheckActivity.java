@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * "Share → Grove Guard" and "Check with Grove Guard" (text selection menu). Works from Firefox: share a page or a
+ * "Share → Groveguard" and "Check with Groveguard" (text selection menu). Works from Firefox: share a page or a
  * link to check its website, or share a downloaded file to scan it. The result shows right here, in a card,
  * instead of throwing you into the main screen (Hypatia rejected shared links as "not a scannable file", opened
  * the main screen twice, and left copies of shared files in its cache).
@@ -55,7 +55,7 @@ public class CheckActivity extends Activity {
         card.setClickable(true);
         LinearLayout head = Ui.row(this);
         head.addView(Ui.badge(this, R.drawable.ic_shield_check, p.primary, p.container, 40));
-        TextView t = Ui.title(this, "Grove Guard", 20);
+        TextView t = Ui.title(this, "Groveguard", 20);
         t.setPadding(Ui.dp(this, 12), 0, 0, 0);
         head.addView(t, Ui.lpW(1));
         card.addView(head);
@@ -121,7 +121,7 @@ public class CheckActivity extends Activity {
                     }
                 });
             } else {
-                message("To check websites, Grove Guard needs its list of dangerous domains (about 14 MB, updated with the database).");
+                message("To check websites, Groveguard needs its list of dangerous domains (about 14 MB, updated with the database).");
                 body.addView(spaced(Ui.button(this, "Download the website list", 0, new View.OnClickListener() {
                     @Override public void onClick(View v) {
                         Prefs.set(CheckActivity.this, Prefs.WEB, true);
@@ -221,8 +221,8 @@ public class CheckActivity extends Activity {
     private void showFiles(List<String[]> res, boolean noDb) {
         body.removeAllViews();
         if (noDb) {
-            message("No signature database yet. Open Grove Guard and update the database first.");
-            body.addView(spaced(Ui.button(this, "Open Grove Guard", 1, new View.OnClickListener() {
+            message("No signature database yet. Open Groveguard and update the database first.");
+            body.addView(spaced(Ui.button(this, "Open Groveguard", 1, new View.OnClickListener() {
                 @Override public void onClick(View v) { startActivity(new Intent(CheckActivity.this, MainActivity.class)); finish(); }
             })));
             closeButton();

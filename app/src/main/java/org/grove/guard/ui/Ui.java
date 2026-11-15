@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.ui;
@@ -203,23 +203,19 @@ public final class Ui {
         return t;
     }
 
-    /** Page title bar like Grove Launcher's settings: back arrow + plain 28sp title. */
-    public static LinearLayout bigTitle(final Context c, String title) {
-        LinearLayout bar = row(c);
-        bar.setPadding(dp(c, 4), dp(c, 8), dp(c, 16), dp(c, 4));
-        FrameLayout back = new FrameLayout(c);
-        back.addView(icon(c, org.grove.guard.R.drawable.ic_back, 0xFFFFFFFF, 24), new FrameLayout.LayoutParams(dp(c, 24), dp(c, 24), Gravity.CENTER));
-        back.setContentDescription("Back");
-        back.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { if (c instanceof android.app.Activity) ((android.app.Activity) c).onBackPressed(); }
-        });
-        tilt(back);
-        bar.addView(back, new LinearLayout.LayoutParams(dp(c, 48), dp(c, 48)));
-        TextView t = text(c, "Grove Guard " + lower(title), 28, 0xFFFFFFFF);
-        t.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+    /** "GROVEGUARD" + a big light lowercase page title (Grove Music / Grovebook settings style). */
+    public static LinearLayout bigTitle(Context c, String title) {
+        LinearLayout l = col(c);
+        l.setPadding(dp(c, 20), dp(c, 14), dp(c, 20), dp(c, 6));
+        TextView app = text(c, "GROVEGUARD", 15, 0xFFFFFFFF);
+        app.setTypeface(semibold());
+        l.addView(app);
+        TextView t = text(c, lower(title), 56, 0xFFFFFFFF);
+        t.setTypeface(light());
+        t.setIncludeFontPadding(false);
         t.setSingleLine();
-        bar.addView(t);
-        return bar;
+        l.addView(t);
+        return l;
     }
 
     public static ImageView icon(Context c, int res, int tint, int sizeDp) {

@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -27,7 +27,7 @@ import java.util.Set;
 public final class Background {
     private Background() { }
 
-    /** Apps restricted right now (asks Android; falls back to what Grove Guard set). Blocking. */
+    /** Apps restricted right now (asks Android; falls back to what Groveguard set). Blocking. */
     public static Set<String> restricted(Context c) {
         Shell.Result r = Shell.run(c, "cmd appops query-op RUN_ANY_IN_BACKGROUND ignore");
         Set<String> out = new HashSet<>();

@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.ui;
@@ -185,7 +185,7 @@ public class FirewallPage {
             @Override public void onClick(View v) {
                 if (allow) return;
                 Ui.confirm(a, "Allow-list mode", "Every app that isn't ticked loses internet access, including ones you install later — until you tick them. "
-                        + "Make sure your browser, messaging apps and Grove Guard's updates still work after switching.", "Switch", new Runnable() {
+                        + "Make sure your browser, messaging apps and Groveguard's updates still work after switching.", "Switch", new Runnable() {
                     @Override public void run() { Firewall.setMode(a, Firewall.MODE_ALLOW); filter(); refreshHeader(); }
                 });
             }
@@ -261,7 +261,7 @@ public class FirewallPage {
         } else {
             Ui.dialog(a).setTitle("Get Shizuku")
                     .setMessage("The firewall runs Android's own network commands, which need Shizuku (works with Wireless debugging, no root) or root.\n\n"
-                            + "After installing, start Shizuku and allow Grove Guard when asked. If you have root, pick “Root only” instead.")
+                            + "After installing, start Shizuku and allow Groveguard when asked. If you have root, pick “Root only” instead.")
                     .setPositiveButton("Download Shizuku", new android.content.DialogInterface.OnClickListener() {
                         @Override public void onClick(android.content.DialogInterface d, int w) {
                             try { a.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://shizuku.rikka.app/download/"))); } catch (Exception ignored) { }

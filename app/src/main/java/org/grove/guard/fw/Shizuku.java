@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -134,7 +134,7 @@ public final class Shizuku {
         return granted;
     }
 
-    /** Shows Shizuku's "allow Grove Guard?" prompt; runs {@code then} (in the background) once allowed. */
+    /** Shows Shizuku's "allow Groveguard?" prompt; runs {@code then} (in the background) once allowed. */
     public static void requestPermission(Runnable then) {
         IBinder b = binder;
         if (b == null) return;
@@ -238,7 +238,7 @@ public final class Shizuku {
         } finally { d1.recycle(); r1.recycle(); }
     }
 
-    /** Shizuku delivers its binder here when it starts, and whenever Grove Guard starts. */
+    /** Shizuku delivers its binder here when it starts, and whenever Groveguard starts. */
     public static final class Provider extends ContentProvider {
         @Override public boolean onCreate() { return true; }
 

@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -40,8 +40,8 @@ public final class Shell {
     public static String status(Context c) {
         String pref = Prefs.str(c, Prefs.FW_BACKEND, "auto");
         if (!"root".equals(pref)) {
-            if (Shizuku.granted()) return "Shizuku is running and Grove Guard is allowed";
-            if (Shizuku.running()) return "Shizuku is running — tap to allow Grove Guard";
+            if (Shizuku.granted()) return "Shizuku is running and Groveguard is allowed";
+            if (Shizuku.running()) return "Shizuku is running — tap to allow Groveguard";
         }
         if (!"shizuku".equals(pref) && Boolean.TRUE.equals(rootOk)) return "Using root";
         if ("root".equals(pref)) return Boolean.FALSE.equals(rootOk) ? "Root access was denied" : "Tap to ask for root access";

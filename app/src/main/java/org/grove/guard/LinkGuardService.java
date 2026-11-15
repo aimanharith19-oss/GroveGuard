@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * Idea from Hypatia's LinkScannerService (Copyright (C) 2017-2018 Divested Computing Group), rewritten.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -61,7 +61,7 @@ public class LinkGuardService extends AccessibilityService {
                 "com.vivaldi.browser", "com.kiwibrowser.browser", "org.bromite.bromite", "org.cromite.cromite", "com.microsoft.emmx",
                 "com.sec.android.app.sbrowser", "com.opera.browser", "com.opera.mini.native", "com.duckduckgo.mobile.android",
                 "org.chromium.chrome", "com.ecosia.android", "us.spotco.mulch_wv", "com.yandex.browser", "mark.via.gp", "mark.via"}) BROWSERS.put(p, chromium);
-        // Grove Launcher's feed browser (it can also ask Grove Guard directly before loading a page)
+        // Grove Launcher's feed browser (it can also ask Groveguard directly before loading a page)
         BROWSERS.put(Trust.LAUNCHER, new String[]{"url_bar", "address", "url", "web_address", "address_box", "web_url"});
     }
 
@@ -90,7 +90,7 @@ public class LinkGuardService extends AccessibilityService {
         if (!Prefs.on(this, Prefs.WEB, false)) Prefs.set(this, Prefs.WEB, true); // turning the service on means you want it
         Sigs.ensureLoaded(this);
         if (!Sigs.domainsLoaded() && !new java.io.File(Sigs.dir(this), Sigs.DOMAINS).exists()) {
-            Events.add(Events.WEB, "Web protection is on — the website list isn't downloaded yet", "Update the database in Grove Guard.");
+            Events.add(Events.WEB, "Web protection is on — the website list isn't downloaded yet", "Update the database in Groveguard.");
             if (Sigs.networkOk(this, false)) Sigs.update(this, false, null);
         }
         Events.add(Events.WEB, "Web protection on", "Checking Firefox and other browsers");
@@ -238,7 +238,7 @@ public class LinkGuardService extends AccessibilityService {
         boolean leave = opened && Prefs.on(this, Prefs.WEB_AUTO_BACK, false);
         if (leave) {
             performGlobalAction(GLOBAL_ACTION_BACK);
-            Toast.makeText(this, "Grove Guard: left dangerous site " + WebCheck.defang(hit.host), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Groveguard: left dangerous site " + WebCheck.defang(hit.host), Toast.LENGTH_LONG).show();
         }
         Events.add(Events.WEB, (opened ? "Dangerous site opened in " : "Dangerous address shown in ") + app + ": " + WebCheck.defang(hit.host),
                 (hit.listed.equals(hit.host) ? "" : "Listed as " + WebCheck.defang(hit.listed) + " · ") + (leave ? "Went back automatically" : "Warned"));
@@ -247,10 +247,10 @@ public class LinkGuardService extends AccessibilityService {
                 .setSmallIcon(R.drawable.ic_stat)
                 .setColor(0xFFC0392B)
                 .setContentTitle(leave ? "Left a dangerous site" : "Dangerous site: " + WebCheck.defang(hit.host))
-                .setContentText((leave ? WebCheck.defang(hit.host) + " · " : "") + "On Grove Guard's list of malware, phishing, tracker and ad domains")
+                .setContentText((leave ? WebCheck.defang(hit.host) + " · " : "") + "On Groveguard's list of malware, phishing, tracker and ad domains")
                 .setStyle(new Notification.BigTextStyle().bigText(WebCheck.defang(hit.host) + " in " + app
                         + (hit.listed.equals(hit.host) ? "" : "\nListed domain: " + WebCheck.defang(hit.listed))
-                        + "\nOn Grove Guard's list of malware, phishing, tracker and ad domains."))
+                        + "\nOn Groveguard's list of malware, phishing, tracker and ad domains."))
                 .setCategory(Notification.CATEGORY_ERROR)
                 .setTimeoutAfter(10 * 60 * 1000L)
                 .setAutoCancel(true);

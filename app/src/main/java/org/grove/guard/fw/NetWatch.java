@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -16,7 +16,7 @@ import android.net.NetworkRequest;
 import android.os.Build;
 
 /**
- * Follows Wi-Fi ↔ mobile switches so "Wi-Fi only" blocks are switched on and off. Android wakes Grove Guard
+ * Follows Wi-Fi ↔ mobile switches so "Wi-Fi only" blocks are switched on and off. Android wakes Groveguard
  * through a PendingIntent when Wi-Fi or mobile data comes up (works even when the app isn't running); while
  * the app is running a live callback reacts faster.
  */

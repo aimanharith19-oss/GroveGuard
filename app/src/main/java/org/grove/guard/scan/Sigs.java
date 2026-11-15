@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * Database layout and sources from Hypatia (Copyright (C) 2017-2018 Divested Computing Group,
  * Copyleft 2025 MaintainTeam), rewritten.
  * SPDX-License-Identifier: AGPL-3.0-or-later

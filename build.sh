@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Grove Guard without Gradle, using only open tools:
+# Builds Groveguard without Gradle, using only open tools:
 #   aapt2 (resources), javac (Java 8 bytecode), dx (dex), uber-apk-signer (signing).
 # libs/bc-from-hypatia.jar holds the Bouncy Castle (MIT) classes Hypatia 3.18 shipped, used for signature checks.
 set -euo pipefail
@@ -43,7 +43,7 @@ java -cp "$DX_JAR" com.android.dx.command.Main --dex --min-sdk-version=26 --outp
 echo "> sign"
 if [ ! -f "$KEYSTORE" ]; then
   keytool -genkeypair -keystore "$KEYSTORE" -storepass guard-local -keypass guard-local -alias guard \
-    -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=Grove Guard, O=Grove, C=MY" >/dev/null 2>&1
+    -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=Groveguard, O=Grove, C=MY" >/dev/null 2>&1
 fi
 java -jar "$SIGNER" -a "$OUT/unsigned.apk" -o "$OUT/signed" --ks "$KEYSTORE" --ksAlias guard \
   --ksPass guard-local --ksKeyPass guard-local --allowResign >/dev/null

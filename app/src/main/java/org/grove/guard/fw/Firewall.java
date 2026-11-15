@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * Feature set modelled on ShizuWall (github.com/AhmetCanArslan/ShizuWall, GPL-3.0); written from scratch.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -200,7 +200,7 @@ public final class Firewall {
         });
     }
 
-    /** Runs Grove Guard's helper as the shell/root user (see {@link Helper}). */
+    /** Runs Groveguard's helper as the shell/root user (see {@link Helper}). */
     static String helperCmd(Context c, String args) {
         return "CLASSPATH=" + Shell.q(c.getApplicationInfo().sourceDir) + " app_process /system/bin " + Helper.class.getName() + " " + args;
     }
@@ -312,7 +312,7 @@ public final class Firewall {
     }
 
     static String noBackend(Context c) {
-        if (Shizuku.running() && !Shizuku.granted()) return "Allow Grove Guard in Shizuku first (Firewall tab)";
+        if (Shizuku.running() && !Shizuku.granted()) return "Allow Groveguard in Shizuku first (Firewall tab)";
         return "Shizuku isn't running and root isn't available";
     }
 
@@ -387,7 +387,7 @@ public final class Firewall {
         });
     }
 
-    /** Catches installs that happened while Grove Guard wasn't running (checked by a periodic job and at start). */
+    /** Catches installs that happened while Groveguard wasn't running (checked by a periodic job and at start). */
     public static void checkChangedPackages(Context c) {
         PackageManager pm = c.getPackageManager();
         int seq = Prefs.sp(c).getInt("fw_pkg_seq", -1);
@@ -553,7 +553,7 @@ public final class Firewall {
                     .setContentTitle("Firewall is off after restart")
                     .setContentText("Start Shizuku and it turns back on by itself")
                     .setStyle(new Notification.BigTextStyle().bigText("Android clears firewall rules when the phone restarts. "
-                            + "Start Shizuku (or allow root) and Grove Guard re-applies them automatically."))
+                            + "Start Shizuku (or allow root) and Groveguard re-applies them automatically."))
                     .setContentIntent(PendingIntent.getActivity(c, ID, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT))
                     .setAutoCancel(true)
                     .build();

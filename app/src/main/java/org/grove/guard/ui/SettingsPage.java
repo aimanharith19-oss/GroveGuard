@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.ui;
@@ -81,7 +81,7 @@ public class SettingsPage {
                         else ((MainActivity) a).openTab(1);
                     }
                 }));
-        if (backend != null) sz.addView(Ui.item(a, 0, "Set up Grove Guard with " + backend, "Grants file access, alerts and battery exemption in one go", null,
+        if (backend != null) sz.addView(Ui.item(a, 0, "Set up Groveguard with " + backend, "Grants file access, alerts and battery exemption in one go", null,
                 new View.OnClickListener() {
                     @Override public void onClick(View v) {
                         App.IO.execute(new Runnable() {
@@ -92,8 +92,8 @@ public class SettingsPage {
                         });
                     }
                 }));
-        TextView szn = Ui.text(a, "With Shizuku, Grove Guard runs the firewall, the Background and Apps tabs, scans app data folders, and can switch "
-                + "Web protection on without the accessibility settings screen. If Grove Guard isn't listed in Shizuku, stop and start Shizuku once.", 12, p.sub);
+        TextView szn = Ui.text(a, "With Shizuku, Groveguard runs the firewall, the Background and Apps tabs, scans app data folders, and can switch "
+                + "Web protection on without the accessibility settings screen. If Groveguard isn't listed in Shizuku, stop and start Shizuku once.", 12, p.sub);
         szn.setPadding(Ui.dp(a, 4), Ui.dp(a, 6), Ui.dp(a, 4), 0);
         sz.addView(szn);
         col.addView(sz);
@@ -152,8 +152,8 @@ public class SettingsPage {
             @Override public void onClick(View v) { editAllowed(); }
         }));
         TextView wn = Ui.text(a, "Works with Firefox, Firefox Beta/Nightly, Focus, Fennec, IronFox, Iceraven, Tor Browser, Mull, Chrome, Brave, "
-                + "Vivaldi, Edge, Samsung Internet, DuckDuckGo and others. You can also share any page or link to Grove Guard, "
-                + "or select text and choose “Check with Grove Guard”.", 12, p.sub);
+                + "Vivaldi, Edge, Samsung Internet, DuckDuckGo and others. You can also share any page or link to Groveguard, "
+                + "or select text and choose “Check with Groveguard”.", 12, p.sub);
         wn.setPadding(Ui.dp(a, 4), Ui.dp(a, 6), Ui.dp(a, 4), 0);
         web.addView(wn);
         col.addView(web);
@@ -174,7 +174,7 @@ public class SettingsPage {
         col.addView(Ui.section(a, "Security"));
         LinearLayout sec = Ui.card(a);
         final boolean lockOn = Lock.enabled(a);
-        sec.addView(Ui.item(a, R.drawable.ic_shield_check, "App lock", lockOn ? "On · fingerprint or your screen lock" : "Ask for fingerprint or your screen lock to open Grove Guard",
+        sec.addView(Ui.item(a, R.drawable.ic_shield_check, "App lock", lockOn ? "On · fingerprint or your screen lock" : "Ask for fingerprint or your screen lock to open Groveguard",
                 lockOn, new View.OnClickListener() {
                     @Override public void onClick(View v) {
                         if (!Lock.deviceSecure(a)) { Ui.toast(a, "Set a screen lock (PIN, pattern or password) in Android settings first"); return; }
@@ -205,7 +205,7 @@ public class SettingsPage {
         }
         final String mode = org.grove.guard.Trust.mode(a);
         String modeName = "off".equals(mode) ? "Nobody (Grove Launcher still works)" : "any".equals(mode) ? "Any app (not recommended)" : "Apps that send the key";
-        sec.addView(Ui.item(a, R.drawable.ic_link, "Other apps can control Grove Guard", modeName, null, new View.OnClickListener() {
+        sec.addView(Ui.item(a, R.drawable.ic_link, "Other apps can control Groveguard", modeName, null, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 final String[] ids = {"key", "off", "any"};
                 String[] n = {"Apps that send the key (Tasker, adb)", "Nobody — only Grove Launcher", "Any app, no key (not recommended)"};
@@ -229,7 +229,7 @@ public class SettingsPage {
             }
         }));
         TextView sn = Ui.text(a, "Always on: databases must be signed by the pinned key and can't be swapped for older ones; HTTPS only, with the phone's "
-                + "built-in certificates; taps are ignored while another app draws over Grove Guard; only Grove Launcher can read its status.", 12, p.sub);
+                + "built-in certificates; taps are ignored while another app draws over Groveguard; only Grove Launcher can read its status.", 12, p.sub);
         sn.setPadding(Ui.dp(a, 4), Ui.dp(a, 6), Ui.dp(a, 4), 0);
         sec.addView(sn);
         col.addView(sec);
@@ -246,7 +246,7 @@ public class SettingsPage {
         LinearLayout ab = Ui.card(a);
         String ver = "";
         try { PackageInfo pi = a.getPackageManager().getPackageInfo(a.getPackageName(), 0); ver = pi.versionName; } catch (Exception ignored) { }
-        ab.addView(Ui.item(a, R.drawable.ic_shield, "Grove Guard " + ver, "Free software under the GNU Affero General Public License v3 or later", null, new View.OnClickListener() {
+        ab.addView(Ui.item(a, R.drawable.ic_shield, "Groveguard " + ver, "Free software under the GNU Affero General Public License v3 or later", null, new View.OnClickListener() {
             @Override public void onClick(View v) { licences(); }
         }));
         col.addView(ab);
@@ -312,7 +312,7 @@ public class SettingsPage {
         Sigs.Source s = Sigs.source(a);
         if (!"custom".equals(s.id)) {
             Ui.dialog(a).setTitle("Signing key").setMessage(s.name + " databases must be signed by the key with fingerprint\n\n" + group(Sigs.fingerprint(a, s).isEmpty()
-                    ? "(pinned on first update)" : Sigs.fingerprint(a, s)) + "\n\nGrove Guard refuses any database that isn't.")
+                    ? "(pinned on first update)" : Sigs.fingerprint(a, s)) + "\n\nGroveguard refuses any database that isn't.")
                     .setPositiveButton(android.R.string.ok, null).show();
             return;
         }
@@ -379,11 +379,11 @@ public class SettingsPage {
 
     private void showKey() {
         final String k = org.grove.guard.Trust.key(a);
-        Ui.dialog(a).setTitle("Automation key").setMessage(k + "\n\nAnyone with this key can control Grove Guard. Change it if it leaks.")
+        Ui.dialog(a).setTitle("Automation key").setMessage(k + "\n\nAnyone with this key can control Groveguard. Change it if it leaks.")
                 .setPositiveButton("Copy", new android.content.DialogInterface.OnClickListener() {
                     @Override public void onClick(android.content.DialogInterface d, int w) {
                         android.content.ClipboardManager cm = a.getSystemService(android.content.ClipboardManager.class);
-                        android.content.ClipData cd = android.content.ClipData.newPlainText("Grove Guard key", k);
+                        android.content.ClipData cd = android.content.ClipData.newPlainText("Groveguard key", k);
                         if (android.os.Build.VERSION.SDK_INT >= 33) {
                             android.os.PersistableBundle pb = new android.os.PersistableBundle();
                             pb.putBoolean("android.content.extra.IS_SENSITIVE", true); // hidden from the clipboard preview
@@ -399,8 +399,8 @@ public class SettingsPage {
     }
 
     private void licences() {
-        String s = "Grove Guard is a rewrite of Hypatia, the realtime malware scanner by Divested Computing Group (2017–2018) and "
-                + "MaintainTeam (2025), licensed AGPL-3.0-or-later; Grove Guard is released under the same licence. The source code comes with every release.\n\n"
+        String s = "Groveguard is a rewrite of Hypatia, the realtime malware scanner by Divested Computing Group (2017–2018) and "
+                + "MaintainTeam (2025), licensed AGPL-3.0-or-later; Groveguard is released under the same licence. The source code comes with every release.\n\n"
                 + "Signature databases: MaintainTeam HypatiaDatabases (built from ClamAV, ESET, MalwareBazaar, ThreatFox, VirusShare, "
                 + "Amnesty International, Echap stalkerware indicators, Nex and others). Website list: Divested hosts list.\n\n"
                 + "The firewall's features are modelled on ShizuWall by Ahmet Can Arslan (GPL-3.0); no ShizuWall code is included.\n\n"

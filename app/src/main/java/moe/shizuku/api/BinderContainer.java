@@ -1,7 +1,7 @@
 /*
  * Interop shim for Shizuku (https://github.com/RikkaApps/Shizuku-API, MIT License, (c) 2021 RikkaW).
  * Shizuku hands its binder to apps wrapped in a parcelable of exactly this class name, so the app needs a class
- * with the same name and parcel format to receive it. Written for Grove Guard; no Shizuku library code is bundled.
+ * with the same name and parcel format to receive it. Written for Groveguard; no Shizuku library code is bundled.
  */
 package moe.shizuku.api;
 

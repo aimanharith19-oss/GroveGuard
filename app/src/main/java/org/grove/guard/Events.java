@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * The Activity tab: a short history of what Grove Guard did (scans, updates, alerts, firewall changes).
+ * The Activity tab: a short history of what Groveguard did (scans, updates, alerts, firewall changes).
  * Replaces Hypatia's log text view, which re-opened the app whenever the background scanner wrote to it.
  * Kept in a small file on the phone only.
  */

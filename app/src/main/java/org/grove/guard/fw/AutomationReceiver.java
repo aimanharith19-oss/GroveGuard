@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -19,8 +19,8 @@ import org.grove.guard.scan.Sigs;
 import java.util.Set;
 
 /**
- * Lets Canopy Launcher, Tasker, MacroDroid or adb control Grove Guard. Accepts ShizuWall's broadcast actions
- * and extras, so existing automations keep working once you point them at Grove Guard:
+ * Lets Canopy Launcher, Tasker, MacroDroid or adb control Groveguard. Accepts ShizuWall's broadcast actions
+ * and extras, so existing automations keep working once you point them at Groveguard:
  * <pre>
  *  adb shell am broadcast -a shizuwall.CONTROL -n org.grove.guard/.fw.AutomationReceiver --ez state true
  *  adb shell am broadcast -a shizuwall.CONTROL -n org.grove.guard/.fw.AutomationReceiver --ez state true --es apps "com.example.app"
@@ -31,7 +31,7 @@ import java.util.Set;
  *  adb shell am broadcast -a org.grove.guard.UPDATE -n org.grove.guard/.fw.AutomationReceiver
  * </pre>
  * org.grove.guard.FIREWALL and org.grove.guard.PROFILE are accepted as aliases of the ShizuWall actions.
- * Can be switched off in Settings ("Allow other apps to control Grove Guard").
+ * Can be switched off in Settings ("Allow other apps to control Groveguard").
  */
 public class AutomationReceiver extends BroadcastReceiver {
     /** Small stand-in so the command code below can call pr.finish() both from a broadcast and a direct call. */
@@ -59,7 +59,7 @@ public class AutomationReceiver extends BroadcastReceiver {
     private static void refused(Context c, String action) {
         if (System.currentTimeMillis() - lastRefusal < 60000) return;
         lastRefusal = System.currentTimeMillis();
-        Events.add(Events.ERROR, "Refused a command from another app", action + " · it didn't send Grove Guard's key (Settings > Security)");
+        Events.add(Events.ERROR, "Refused a command from another app", action + " · it didn't send Groveguard's key (Settings > Security)");
     }
 
     /** Runs a command (from a broadcast with the right key, or from the trusted Grove Launcher through the status provider). */
@@ -68,7 +68,7 @@ public class AutomationReceiver extends BroadcastReceiver {
         final PendingResult pr = new PendingResult(done);
         Firewall.Done finish = new Firewall.Done() {
             @Override public void done(boolean ok, String message) {
-                if (!ok && message != null) Toast.makeText(c, "Grove Guard: " + message, Toast.LENGTH_LONG).show();
+                if (!ok && message != null) Toast.makeText(c, "Groveguard: " + message, Toast.LENGTH_LONG).show();
                 pr.finish();
             }
         };
@@ -123,7 +123,7 @@ public class AutomationReceiver extends BroadcastReceiver {
                 break;
             }
             case "org.grove.guard.SCAN":
-                if (!Scanner.start(c)) Toast.makeText(c, "Grove Guard: a scan is already running", Toast.LENGTH_SHORT).show();
+                if (!Scanner.start(c)) Toast.makeText(c, "Groveguard: a scan is already running", Toast.LENGTH_SHORT).show();
                 pr.finish();
                 break;
             case "org.grove.guard.UPDATE":

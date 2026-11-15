@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard;
@@ -68,17 +68,21 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         FrameLayout frame = new FrameLayout(this);
         frame.setBackground(Ui.tintBackground(this, 0.38f));
         LinearLayout root = Ui.col(this);
-        // app name like Grove Launcher's title: plain 28sp, normal case
-        appLabel = Ui.text(this, "Grove Guard", 28, 0xFFFFFFFF);
-        appLabel.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
-        appLabel.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 4));
-        root.addView(appLabel);
+        // panorama title like Grovebook: huge, light, lowercase, one word; slides slower than the pages
+        appLabel = Ui.text(this, "groveguard", 72, 0xFFFFFFFF);
+        appLabel.setTypeface(Ui.light());
+        appLabel.setLetterSpacing(-3f / 72f);
+        appLabel.setSingleLine();
+        appLabel.setIncludeFontPadding(false);
+        appLabel.setPadding(Ui.dp(this, 12), Ui.dp(this, 2), 0, 0);
+        FrameLayout titleClip = new FrameLayout(this);
+        titleClip.setClipChildren(true);
+        titleClip.addView(appLabel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(titleClip);
         pivotScroll = new android.widget.HorizontalScrollView(this);
         pivotScroll.setHorizontalScrollBarEnabled(false);
-        pivotScroll.setFillViewport(true);
         pivot = Ui.row(this);
-        pivot.setGravity(Gravity.CENTER);
-        pivot.setPadding(Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6));
+        pivot.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 80), 0);
         pivotScroll.addView(pivot, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(pivotScroll);
         content = new SwipeFrame(this);
@@ -212,32 +216,27 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     private void buildNav() {
         boolean settings = tab == TAB_SETTINGS;
-        appLabel.setVisibility(settings ? View.GONE : View.VISIBLE);
+        ((View) appLabel.getParent()).setVisibility(settings ? View.GONE : View.VISIBLE);
         pivotScroll.setVisibility(settings ? View.GONE : View.VISIBLE);
         pivot.removeAllViews();
         View sel = null;
         for (int i = 0; i < TABS.length; i++) {
             final int idx = i;
-            // Grove Launcher tabs: the current one is a soft accent pill with bold accent text, the others plain grey text
-            boolean on = i == tab;
-            TextView t = Ui.text(this, TABS[i], 15, on ? Ui.accent(this) : Ui.DIM);
-            t.setTypeface(Typeface.create("sans-serif-medium", on ? Typeface.BOLD : Typeface.NORMAL));
-            t.setGravity(Gravity.CENTER);
+            // pivot headers like Grovebook / Grove Music: 40sp light lowercase, the others faded
+            TextView t = Ui.text(this, TABS[i].toLowerCase(java.util.Locale.getDefault()), 40, 0xFFFFFFFF);
+            t.setTypeface(Ui.light());
+            t.setAlpha(i == tab ? 1f : 0.35f);
             t.setSingleLine();
-            t.setMinWidth(Ui.dp(this, 64));
-            t.setPadding(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 9));
-            android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
-            pill.setCornerRadius(Ui.dp(this, 20));
-            pill.setColor(on ? Ui.alpha(Ui.accent(this), 0x2E / 255f) : 0);
-            t.setBackground(pill);
+            t.setIncludeFontPadding(false);
+            t.setPadding(0, 0, Ui.dp(this, 22), Ui.dp(this, 4));
             t.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { openTab(idx); } });
             t.setContentDescription(TABS[i]);
-            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            tlp.leftMargin = tlp.rightMargin = Ui.dp(this, 3);
-            pivot.addView(t, tlp);
+            pivot.addView(t);
             if (i == tab) sel = t;
         }
-        if (sel != null) { final View fs = sel; pivotScroll.post(new Runnable() { @Override public void run() { pivotScroll.smoothScrollTo(Math.max(0, fs.getLeft() - Ui.dp(MainActivity.this, 8)), 0); } }); }
+        // panorama parallax: the big title moves 60dp per page
+        if (!settings) appLabel.animate().translationX(-tab * Ui.dp(this, 60)).setDuration(450).setInterpolator(Ui.WP_EASE).start();
+        if (sel != null) { final View fs = sel; pivotScroll.post(new Runnable() { @Override public void run() { pivotScroll.smoothScrollTo(Math.max(0, fs.getLeft() - Ui.dp(MainActivity.this, 18)), 0); } }); }
         // app bar: round outlined buttons and "•••"
         nav.removeAllViews();
         if (tab == 0) {
@@ -400,7 +399,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         if (y > 0) sv.post(new Runnable() { @Override public void run() { sv.scrollTo(0, y); } });
     }
 
-    private View header(String subtitle) { return pageHeader(this, "Grove Guard", subtitle); }
+    private View header(String subtitle) { return pageHeader(this, "Groveguard", subtitle); }
 
     // ---------------------------------------------------------------- Protect
 
@@ -528,7 +527,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             if (!files) pc.addView(Ui.item(this, R.drawable.ic_folder, "Allow file access", "Needed to scan your storage and Downloads", null, new View.OnClickListener() {
                 @Override public void onClick(View v) { askFileAccess(); }
             }));
-            if (!notif) pc.addView(Ui.item(this, R.drawable.ic_warning, "Allow alerts", "So Grove Guard can tell you when it finds something", null, new View.OnClickListener() {
+            if (!notif) pc.addView(Ui.item(this, R.drawable.ic_warning, "Allow alerts", "So Groveguard can tell you when it finds something", null, new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
                 }
@@ -559,7 +558,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
                             try {
                                 startActivity(new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                                         .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()).putExtra(Settings.EXTRA_CHANNEL_ID, App.CH_BACKGROUND));
-                            } catch (Exception e) { Ui.toast(MainActivity.this, "Open Android's notification settings for Grove Guard"); }
+                            } catch (Exception e) { Ui.toast(MainActivity.this, "Open Android's notification settings for Groveguard"); }
                         }
                     }));
         }
@@ -570,7 +569,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         pc.addView(Ui.item(this, R.drawable.ic_globe, "Web protection (Firefox & browsers)", webSub, web, new View.OnClickListener() {
             @Override public void onClick(View v) { toggleWeb(); }
         }));
-        pc.addView(Ui.item(this, R.drawable.ic_link, "Check a link", "Or share a page from Firefox to Grove Guard", null, new View.OnClickListener() {
+        pc.addView(Ui.item(this, R.drawable.ic_link, "Check a link", "Or share a page from Firefox to Groveguard", null, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Ui.input(MainActivity.this, "Check a link", null, "example.com or https://…", "", new Ui.Cb<String>() {
                     @Override public void on(String s) {
@@ -668,7 +667,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         if (!Sigs.downloaded(this)) { update(); return; }
         if (Sigs.updating()) { Ui.toast(this, "Wait for the update to finish"); return; }
         if (Prefs.on(this, Prefs.SCAN_STORAGE, true) && !App.hasFileAccess(this)) {
-            Ui.confirm(this, "Scan without file access?", "Grove Guard can't see your storage yet, so only apps will be scanned.", "Allow access", new Runnable() {
+            Ui.confirm(this, "Scan without file access?", "Groveguard can't see your storage yet, so only apps will be scanned.", "Allow access", new Runnable() {
                 @Override public void run() { askFileAccess(); }
             });
         }
@@ -732,21 +731,21 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
                     });
                 }
             };
-            if (on) Ui.confirm(this, "Turn on Web protection?", "Grove Guard reads the address bar of Firefox and other browsers and warns you about dangerous sites. "
+            if (on) Ui.confirm(this, "Turn on Web protection?", "Groveguard reads the address bar of Firefox and other browsers and warns you about dangerous sites. "
                     + "Nothing it reads is stored or sent anywhere. Shizuku switches it on for you.", "Turn on", go);
             else go.run();
             return;
         }
         if (LinkGuardService.enabledInSettings(this)) {
-            Ui.confirm(this, "Turn off Web protection?", "Android turns accessibility services off in its own settings. Find Grove Guard web protection there and switch it off."
+            Ui.confirm(this, "Turn off Web protection?", "Android turns accessibility services off in its own settings. Find Groveguard web protection there and switch it off."
                     + (Prefs.on(this, Prefs.REALTIME, false) ? "\n\nRealtime scanning will keep running as a background service." : ""), "Open settings", new Runnable() {
                 @Override public void run() { openAccessibility(); }
             });
             return;
         }
         Ui.dialog(this).setTitle("Turn on Web protection")
-                .setMessage("Grove Guard reads the address bar of Firefox and other browsers, and warns you (or goes back) when a site is on its list of "
-                        + "dangerous domains. Nothing it reads is stored or sent anywhere.\n\nOn the next screen, tap “Grove Guard web protection” and switch it on. "
+                .setMessage("Groveguard reads the address bar of Firefox and other browsers, and warns you (or goes back) when a site is on its list of "
+                        + "dangerous domains. Nothing it reads is stored or sent anywhere.\n\nOn the next screen, tap “Groveguard web protection” and switch it on. "
                         + "Some phones ask you to allow restricted settings first (App info → ⋮ → Allow restricted settings).")
                 .setPositiveButton("Continue", new android.content.DialogInterface.OnClickListener() {
                     @Override public void onClick(android.content.DialogInterface d, int w) {
@@ -765,7 +764,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     // ---------------------------------------------------------------- Activity
 
     private void buildActivity(LinearLayout col) {
-        col.addView(pageHeader(this, "Activity", "What Grove Guard has been doing"));
+        col.addView(pageHeader(this, "Activity", "What Groveguard has been doing"));
         List<Events.Event> ev = Events.all();
         LinearLayout c = Ui.card(this);
         if (ev.isEmpty()) {

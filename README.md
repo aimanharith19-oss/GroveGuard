@@ -1,9 +1,9 @@
-# Grove Guard
+# Groveguard
 
 Malware scanner, web protection and firewall for Android — part of the Grove family with
 Canopy Launcher and Grove Vault.
 
-Grove Guard is a rewrite of **Hypatia** 3.18 (Divested Computing Group / MaintainTeam), whose
+Groveguard is a rewrite of **Hypatia** 3.18 (Divested Computing Group / MaintainTeam), whose
 development has stopped, with ShizuWall's firewall features built in. Licence: **AGPL-3.0-or-later**
 (same as Hypatia). Package: `org.grove.guard` (installs alongside Hypatia; uninstall Hypatia yourself).
 
@@ -25,14 +25,14 @@ development has stopped, with ShizuWall's firewall features built in. Licence: *
   Firefox, Beta, Nightly, Focus/Klar, Fennec, IronFox, Iceraven, Mull, Tor Browser, Chrome, Brave,
   Vivaldi, Edge, Samsung Internet, DuckDuckGo, Opera, Kiwi, Cromite and others; a fallback finds the
   address bar on browsers/versions without view ids.
-- **Share → Grove Guard** from Firefox: share a page/link to check its site, or a downloaded file to scan it.
-- **Check with Grove Guard** in the text-selection menu.
+- **Share → Groveguard** from Firefox: share a page/link to check its site, or a downloaded file to scan it.
+- **Check with Groveguard** in the text-selection menu.
 - Sub-domains are matched against listed parent domains; you can allow sites.
 
 **Firewall tab** (no VPN; needs Shizuku or root — like ShizuWall)
 - On/off, *block the apps I pick* or *allow only the apps I pick*, search, system apps.
 - Profiles (save, switch, update, delete), new-app blocking, re-apply after restart
-  (Android clears the rules on reboot; Grove Guard re-applies them when Shizuku/root is back).
+  (Android clears the rules on reboot; Groveguard re-applies them when Shizuku/root is back).
 - Quick Settings tile: **Firewall**.
 - ShizuWall-compatible automation (`shizuwall.CONTROL`, `shizuwall.PROFILE`, `shizuwall.APP_INSTALLED`),
   plus `org.grove.guard.REALTIME`, `.SCAN`, `.UPDATE`. Settings → Automation commands lists them.
@@ -40,11 +40,11 @@ development has stopped, with ShizuWall's firewall features built in. Licence: *
 **Canopy Launcher** reads status from `content://org.grove.guard.status/status` (one row: realtime,
 web, db_loaded, signatures, db_updated, scanning, scan_progress, threats, last_threat, firewall,
 firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events` (latest 20 Activity
-lines; visited-site names are withheld), and controls Grove Guard with the broadcasts above sent to
+lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
 ## What's new in 1.2 (security)
-- **App lock**: fingerprint or the phone's screen lock (Android's own prompt) to open Grove Guard and to act on
+- **App lock**: fingerprint or the phone's screen lock (Android's own prompt) to open Groveguard and to act on
   threat notifications; ask again every time or after 1/5/30 min; screenshots and the recents preview are hidden while on.
 - **Only Grove Launcher can read status** (`content://org.grove.guard.status`), identified by Android and pinned
   to its signing certificate. It can also `call("checkUrl", url)` and `call("control", action, extras)`.
@@ -62,7 +62,7 @@ lines; visited-site names are withheld), and controls Grove Guard with the broad
 - **Bigger buttons**: *Scan now* and *Update database* are full-width, with icons.
 - **Firewall per network**: tap the "All networks" chip on a blocked app to block **mobile data only**
   (Android's metered firewall chain, Android 13+) or **Wi-Fi only** (switched automatically when you move
-  between Wi-Fi and mobile data). Runs a small helper inside the Grove Guard APK as the Shizuku/root user
+  between Wi-Fi and mobile data). Runs a small helper inside the Groveguard APK as the Shizuku/root user
   (`app_process … org.grove.guard.fw.Helper`).
 - **Background tab**: restrict apps from running in the background (`RUN_ANY_IN_BACKGROUND` /
   `RUN_IN_BACKGROUND` app-ops + restricted standby bucket), force-stop restricted apps, clear cached

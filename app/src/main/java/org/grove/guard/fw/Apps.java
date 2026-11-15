@@ -1,6 +1,6 @@
 /*
- * Grove Guard — malware scanner, link guard and firewall for Android.
- * Copyright (C) 2026 Grove Guard contributors.
+ * Groveguard — malware scanner, link guard and firewall for Android.
+ * Copyright (C) 2026 Groveguard contributors.
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package org.grove.guard.fw;
@@ -42,7 +42,7 @@ public final class Apps {
             Shizuku.MANAGER,
     };
 
-    /** Apps that would break the phone (or Grove Guard) if removed or disabled: the home screen, keyboard, system UI… */
+    /** Apps that would break the phone (or Groveguard) if removed or disabled: the home screen, keyboard, system UI… */
     public static Set<String> essential(Context c) {
         Set<String> s = new HashSet<>();
         for (String p : ESSENTIAL) s.add(p);
@@ -67,7 +67,7 @@ public final class Apps {
     public static String run(Context c, String action, String pkg, boolean system) {
         if (!Firewall.validPkg(pkg)) return "Invalid package";
         if ((DISABLE.equals(action) || UNINSTALL.equals(action) || CLEAR.equals(action)) && essential(c).contains(pkg))
-            return "Protected: removing or disabling it can stop your phone (or Grove Guard) from working";
+            return "Protected: removing or disabling it can stop your phone (or Groveguard) from working";
         String label = Detect.appName(c, pkg);
         String cmd;
         switch (action) {
