@@ -323,8 +323,10 @@ public final class Ui {
         TextView t = text(c, lower(label), 15, 0xFFFFFFFF);
         t.setPadding(dp(c, 14), dp(c, 8), dp(c, 14), dp(c, 8));
         GradientDrawable g = new GradientDrawable();
-        if (on) g.setColor(accent(c)); else { g.setColor(0); g.setStroke(dp(c, 1.5f), 0x99FFFFFF); }
-        t.setBackground(g);
+        if (on) { g.setColor(accent(c)); g.setStroke(dp(c, 2), accent(c)); } else { g.setColor(0); g.setStroke(dp(c, 2), 0xCCFFFFFF); }
+        // inset so the outline never touches the view's edge (it was being clipped at the top)
+        t.setBackground(new android.graphics.drawable.InsetDrawable(g, dp(c, 2)));
+        t.setPadding(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10));
         t.setOnClickListener(l);
         if (l != null) tilt(t);
         LinearLayout.LayoutParams lp = lp(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);

@@ -814,10 +814,15 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     /** Lays out chips in rows that wrap. */
     public static class FlowLayout extends LinearLayout {
-        public FlowLayout(android.content.Context c) { super(c); }
+        public FlowLayout(android.content.Context c) {
+            super(c);
+            setClipChildren(false);
+            setClipToPadding(false);
+            setPadding(0, Ui.dp(c, 4), 0, Ui.dp(c, 4));
+        }
 
         @Override protected void onMeasure(int wSpec, int hSpec) {
-            int maxW = MeasureSpec.getSize(wSpec);
+            int maxW = MeasureSpec.getSize(wSpec) - getPaddingLeft() - getPaddingRight();
             int x = 0, y = 0, rowH = 0;
             for (int i = 0; i < getChildCount(); i++) {
                 View ch = getChildAt(i);
@@ -828,17 +833,17 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
                 x += w;
                 rowH = Math.max(rowH, h);
             }
-            setMeasuredDimension(maxW, y + rowH);
+            setMeasuredDimension(MeasureSpec.getSize(wSpec), y + rowH + getPaddingTop() + getPaddingBottom());
         }
 
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            int maxW = r - l, x = 0, y = 0, rowH = 0;
+            int maxW = r - l - getPaddingLeft() - getPaddingRight(), x = 0, y = 0, rowH = 0, px = getPaddingLeft(), py = getPaddingTop();
             for (int i = 0; i < getChildCount(); i++) {
                 View ch = getChildAt(i);
                 LayoutParams lp = (LayoutParams) ch.getLayoutParams();
                 int w = ch.getMeasuredWidth() + lp.leftMargin + lp.rightMargin, h = ch.getMeasuredHeight() + lp.topMargin + lp.bottomMargin;
                 if (x + w > maxW && x > 0) { x = 0; y += rowH; rowH = 0; }
-                ch.layout(x + lp.leftMargin, y + lp.topMargin, x + lp.leftMargin + ch.getMeasuredWidth(), y + lp.topMargin + ch.getMeasuredHeight());
+                ch.layout(px + x + lp.leftMargin, py + y + lp.topMargin, px + x + lp.leftMargin + ch.getMeasuredWidth(), py + y + lp.topMargin + ch.getMeasuredHeight());
                 x += w;
                 rowH = Math.max(rowH, h);
             }
