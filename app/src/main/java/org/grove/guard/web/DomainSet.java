@@ -97,13 +97,16 @@ public final class DomainSet {
     }
 
     /** host or one of its parent domains is listed. */
-    public boolean contains(String host) {
-        if (host == null || h.length == 0) return false;
+    public boolean contains(String host) { return match(host) != null; }
+
+    /** The listed entry covering host (host itself or a parent domain), or null. */
+    public String match(String host) {
+        if (host == null || h.length == 0) return null;
         String s = host.toLowerCase(Locale.ROOT);
         while (true) {
-            if (Arrays.binarySearch(h, hash(s)) >= 0) return true;
+            if (Arrays.binarySearch(h, hash(s)) >= 0) return s;
             int dot = s.indexOf('.');
-            if (dot < 0 || s.indexOf('.', dot + 1) < 0) return false; // never test a bare "com"
+            if (dot < 0 || s.indexOf('.', dot + 1) < 0) return null; // never test a bare "com"
             s = s.substring(dot + 1);
         }
     }

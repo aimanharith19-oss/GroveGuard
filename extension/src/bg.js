@@ -33,14 +33,20 @@ function domainOf(line) {
   if (s.length < 3 || !s.includes('.') || s === 'localhost' || s === '0.0.0.0' || !/^[a-z0-9._-]+$/.test(s)) return null;
   return s;
 }
+/** the 18+ list (and its entry) that covers this site, or null */
 function adultHit(host) {
-  if (!adult || !host) return false;
+  if (!adult || !host) return null;
   let s = host.toLowerCase();
   for (;;) {
-    if (adult.has(s)) return true;
-    const d = s.indexOf('.'); if (d < 0 || s.indexOf('.', d + 1) < 0) return false;
+    for (const [name, set] of adult) if (set.has(s)) return { name, matched: s };
+    const d = s.indexOf('.'); if (d < 0 || s.indexOf('.', d + 1) < 0) return null;
     s = s.slice(d + 1);
   }
+}
+function mine(list, host) { return host && list ? list.find(p => host === p || host.endsWith('.' + p)) || null : null; }
+/** the block page, with why (same wording as Grove Launcher's) */
+function blockUrl(kind, host, why, matched) {
+  return api.runtime.getURL('adult.html') + '?k=' + kind + '&h=' + encodeURIComponent(host) + '&w=' + encodeURIComponent(why || '') + '&m=' + encodeURIComponent(matched || '');
 }
 // ---------------------------------------------------------------- history (every website opened, kept in this browser) + sync to the Groveguard app
 const HIST_MAX = 20000;
@@ -165,13 +171,13 @@ async function downloadList(l) {
 }
 /** Rebuilds the active rules from the switched-on lists (+ your own filters). */
 async function rebuild() {
-  const s = await settings(), r = new Rules(), ad = new Set();
+  const s = await settings(), r = new Rules(), ad = new Map();
   let anyAdult = false;
   for (const l of LISTS) {
     if (!s.lists[l.id]) continue;
     const j = await kv('list:' + l.id);
     if (!j) continue;
-    if (l.adult) { if (j.domains) { for (const d of j.domains) ad.add(d); anyAdult = true; } else await kv('list:' + l.id, null); } // old format: download again
+    if (l.adult) { if (j.domains) { ad.set(l.name, new Set(j.domains)); anyAdult = true; } else await kv('list:' + l.id, null); } // old format: download again
     else r.merge(Rules.fromJSON(j));
   }
   if (s.custom) r.parse(s.custom);
@@ -226,8 +232,9 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
       // the page itself is stopped before it loads (webRequest main_frame)
       return;
     }
-    if (adult && !pausedOn(u.hostname) && adultHit(u.hostname)) {
-      log('page', details.url, '', 'blocked', '18+ list'); visit(details.url, true, '18+ list');
+    const ah = pausedOn(u.hostname) ? null : adultHit(u.hostname);
+    if (ah) {
+      log('page', details.url, '', 'blocked', '18+ list: ' + ah.name); visit(details.url, true, '18+ list: ' + ah.name);
       return;
     }
     if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); visit(details.url, false, ''); return; }
@@ -245,8 +252,10 @@ api.webRequest.onBeforeRequest.addListener(d => {
     let mu; try { mu = new URL(d.url); } catch (e) { return {}; }
     if (!cache || (mu.protocol !== 'http:' && mu.protocol !== 'https:')) return {};
     if (inList(cache.myAllow, mu.hostname)) return {};
-    if (inList(cache.myBlock, mu.hostname)) return { redirectUrl: api.runtime.getURL('adult.html') + '?r=you&h=' + encodeURIComponent(mu.hostname) };
-    if (!pausedOn(mu.hostname) && adultHit(mu.hostname)) return { redirectUrl: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(mu.hostname) };
+    const you = mine(cache.myBlock, mu.hostname);
+    if (you) return { redirectUrl: blockUrl('you', mu.hostname, 'your block list', you) };
+    const ah = pausedOn(mu.hostname) ? null : adultHit(mu.hostname);
+    if (ah) return { redirectUrl: blockUrl('adult', mu.hostname, '18+ list: ' + ah.name, ah.matched) };
     return {};
   }
   if (!cache) return {};
@@ -262,7 +271,8 @@ api.webRequest.onBeforeRequest.addListener(d => {
   if (inList(cache.myBlock, u.hostname)) return block('your block list');
   if (!rules || !cache.blocking || pausedOn(page)) { log(d.type, d.url, page, 'allowed', pausedOn(page) ? 'site paused' : ''); return {}; }
   if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) return block('filter lists');
-  if (adultHit(u.hostname)) return block('18+ list');
+  const ah = adultHit(u.hostname);
+  if (ah) return block('18+ list: ' + ah.name);
   log(d.type, d.url, page, 'allowed', '');
   return {};
 }, { urls: ['<all_urls>'] }, ['blocking']);

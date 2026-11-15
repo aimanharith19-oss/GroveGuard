@@ -79,8 +79,11 @@ public final class WebFilter {
     public static final String ENABLED = "web_blocking", MY_BLOCK = "web_my_block", MY_ALLOW = "web_my_allow", PAUSED = "web_paused";
 
     private static volatile AdRules rules;
+    private static volatile List<DomainSet> adultSets = new ArrayList<>();
+    private static volatile List<String> adultNames = new ArrayList<>();
     private static volatile DomainSet adult; // the switched-on 18+ lists, loaded on their own (fast) so they work from the first page
     private static volatile boolean adultLoaded;
+    private static volatile int adultTotal;
     private static volatile boolean loading, updating;
 
     public interface Listener { void onWebChanged(); }
@@ -163,7 +166,7 @@ public final class WebFilter {
 
     public static int ruleCount(Context c, ListInfo l) { return Prefs.sp(c).getInt("web_count_" + l.id, 0); }
 
-    public static int activeRules() { AdRules r = rules; DomainSet a = adult; return (r == null ? 0 : r.size()) + (a == null ? 0 : a.size()); }
+    public static int activeRules() { AdRules r = rules; int a = adult == null ? 0 : adultTotal; return (r == null ? 0 : r.size()) + a; }
 
     public static long lastUpdate(Context c) { return Prefs.sp(c).getLong("web_last_update", 0); }
 
@@ -246,19 +249,23 @@ public final class WebFilter {
     public static int adultSites(Context c) {
         if (!adultWanted(c)) return 0;
         loadAdult(c);
-        DomainSet d = adult;
-        return d == null ? -1 : d.size();
+        return adult == null ? -1 : adultTotal;
     }
 
     /** Loads the switched-on 18+ lists (milliseconds). */
     static synchronized void loadAdult(Context c) {
         if (adultLoaded) return;
         List<DomainSet> sets = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        int total = 0;
         for (ListInfo l : LISTS) {
             if (!l.adult || !listOn(c, l) || !file(c, l).exists()) continue;
-            try { sets.add(DomainSet.load(file(c, l))); } catch (Throwable ignored) { }
+            try { DomainSet d = DomainSet.load(file(c, l)); sets.add(d); names.add(l.name); total += d.size(); } catch (Throwable ignored) { }
         }
-        adult = sets.isEmpty() ? null : sets.size() == 1 ? sets.get(0) : DomainSet.merge(sets);
+        adultSets = sets;
+        adultNames = names;
+        adult = sets.isEmpty() ? null : sets.get(0); // non-null = something loaded
+        adultTotal = total;
         adultLoaded = true;
     }
 
@@ -357,8 +364,13 @@ public final class WebFilter {
         boolean paused = inList(Prefs.set(c, PAUSED), main ? host : pageHost);
         if (rules == null) ensureLoaded(c);
         if (!adultLoaded) loadAdult(c); // fast, so 18+ sites are blocked even on the first page after Groveguard starts
-        DomainSet ad = adult;
-        if (!paused && ad != null && ad.contains(host)) return new Verdict(true, "adult", "18+ list");
+        if (!paused) {
+            List<DomainSet> sets = adultSets; List<String> names = adultNames;
+            for (int i = 0; i < sets.size() && i < names.size(); i++) {
+                String m = sets.get(i).match(host);
+                if (m != null) return new Verdict(true, "adult", "18+ list: " + names.get(i) + (m.equals(host) ? "" : " (listed as " + m + ")"));
+            }
+        }
         if (main) {
             WebCheck.Hit hit = Sigs.domainsLoaded() ? WebCheck.check(c, host) : null;
             if (hit != null && !paused) return new Verdict(true, "danger", "dangerous-site list" + (hit.listed.equals(host) ? "" : " (" + hit.listed + ")"));
