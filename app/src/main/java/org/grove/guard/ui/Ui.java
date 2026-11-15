@@ -397,24 +397,30 @@ public final class Ui {
             if (msg != null) { msg.setTextColor(0xFFFFFFFF); msg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16); }
             ListView lv = d.getListView();
             if (lv != null) { lv.setDivider(null); lv.setSelector(new ColorDrawable(alpha(accent(c), 0.4f))); }
-            for (int which : new int[]{DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL}) {
-                Button b = d.getButton(which);
-                if (b == null) continue;
-                b.setAllCaps(false);
-                b.setText(lower(String.valueOf(b.getText())));
-                b.setTextColor(0xFFFFFFFF);
-                b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-                GradientDrawable g = new GradientDrawable();
-                if (which == DialogInterface.BUTTON_POSITIVE) g.setColor(accent(c));
-                else { g.setColor(0); g.setStroke(dp(c, 2), 0xFFFFFFFF); }
-                // inset so the outline is drawn fully inside the button (the dialog's button bar clips its top edge)
-                b.setBackground(new android.graphics.drawable.InsetDrawable(g, dp(c, 3)));
-                b.setMinWidth(dp(c, 110));
-                if (b.getParent() instanceof ViewGroup) { ((ViewGroup) b.getParent()).setClipChildren(false); ((ViewGroup) b.getParent()).setClipToPadding(false); }
-                ViewGroup.LayoutParams blp = b.getLayoutParams();
-                if (blp instanceof ViewGroup.MarginLayoutParams) ((ViewGroup.MarginLayoutParams) blp).setMargins(dp(c, 6), dp(c, 6), dp(c, 6), dp(c, 10));
-                b.setLayoutParams(blp);
-                tilt(b);
+            // Replace Android's button bar (it clips outlines) with our own Windows Phone buttons, side by side.
+            LinearLayout bar = row(c);
+            bar.setPadding(dp(c, 18), dp(c, 10), dp(c, 18), dp(c, 16));
+            View nativeBar = null;
+            for (final int which : new int[]{DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEUTRAL, DialogInterface.BUTTON_NEGATIVE}) {
+                final Button nb = d.getButton(which);
+                if (nb == null) continue;
+                if (nativeBar == null && nb.getParent() instanceof View) nativeBar = (View) nb.getParent();
+                if (nb.getVisibility() != View.VISIBLE || TextUtils.isEmpty(nb.getText())) continue;
+                TextView ours = button(c, String.valueOf(nb.getText()), which == DialogInterface.BUTTON_POSITIVE ? 0 : 1, new View.OnClickListener() {
+                    @Override public void onClick(View v) { nb.performClick(); }
+                });
+                LinearLayout.LayoutParams blp = lpW(1);
+                blp.setMargins(bar.getChildCount() == 0 ? 0 : dp(c, 10), 0, 0, 0);
+                bar.addView(ours, blp);
+            }
+            if (bar.getChildCount() > 0 && nativeBar != null) {
+                View panel = (View) nativeBar.getParent(); // the scrolling "buttonPanel" around Android's bar
+                int pid = c.getResources().getIdentifier("parentPanel", "id", "android");
+                ViewGroup parent = pid != 0 ? (ViewGroup) d.findViewById(pid) : null;
+                if (parent != null) {
+                    (panel != null && panel.getParent() == parent ? panel : nativeBar).setVisibility(View.GONE);
+                    parent.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                }
             }
         } catch (Exception ignored) { }
     }
