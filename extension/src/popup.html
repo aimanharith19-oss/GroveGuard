@@ -1,12 +1,11 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-body{margin:0;min-width:280px;background:#000;color:#fff;font-family:"Segoe UI",Roboto,sans-serif;font-weight:300;
-background-image:linear-gradient(rgba(96,169,23,.38),#000 60%)}
-main{padding:18px 20px}.app{font-weight:600;font-size:13px}
-h1{font-weight:300;font-size:36px;margin:4px 0 12px}p{color:#8a8a8a;font-size:14px}
-button{font:inherit;font-size:16px;color:#fff;background:#60a917;border:0;padding:10px 18px;margin-top:8px}
-</style></head><body><main>
-<div class="app">GROVEGUARD</div><h1>web protection</h1>
-<p id="st">Checking…</p><button id="up">update list</button>
+<link rel="stylesheet" href="wp.css"></head><body class="pop"><main>
+<div class="app">GROVEGUARD</div><h1>protection</h1>
+<div class="big" id="count">0</div><p class="dim">blocked on this page</p>
+<label class="row"><span><b>block ads &amp; trackers</b><small>uBlock Origin / EasyList filter lists</small></span><input type="checkbox" id="blocking"></label>
+<label class="row"><span><b>pause on this site</b><small id="host"></small></span><input type="checkbox" id="pause"></label>
+<label class="row"><span><b>dangerous-site warning</b><small>Groveguard's malware &amp; phishing list</small></span><input type="checkbox" id="danger"></label>
+<p class="dim" id="st"></p>
+<button id="lists">filter lists</button> <button class="o" id="up">update now</button>
 </main><script src="popup.js"></script></body></html>

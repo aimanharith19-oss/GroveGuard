@@ -43,6 +43,17 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.5
+- **Ad blocker in the extension** (v1.1): uBlock Origin-style content blocking with the filter lists you choose —
+  uBlock filters (Ads, Privacy, Badware, Quick fixes, Unbreak), EasyList, EasyPrivacy, AdGuard Mobile Ads, Peter Lowe's list,
+  Online Malicious URL Blocklist, and annoyance lists (cookies, social, notifications). Network rules (`||host^`, paths,
+  `$third-party`, generic URL patterns, `@@` exceptions) and site-specific element hiding; "My filters"; pause per site;
+  blocked count on the icon. Lists and the dangerous-site list **update automatically every day**.
+  Extension format is Manifest V2 (blocking requests), supported by Firefox and Chromium browsers that still allow MV2.
+- **VirusTotal**: optional, with your free API key. New apps, risky new downloads and shared files that the local database
+  didn't flag are looked up by SHA-256 (only the fingerprint is sent); flagged by N+ engines → threat. Rate-limited to the
+  free key (4/min, 500/day).
+
 ## What's new in 1.4 — web protection moved into the browser
 Banking apps refuse to run while an unknown accessibility service is installed, so Groveguard no longer has one.
 Web protection is now a **browser extension** (`extension/`): it downloads the same dangerous-domain list

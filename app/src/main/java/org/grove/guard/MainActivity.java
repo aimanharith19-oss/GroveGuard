@@ -562,8 +562,8 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
                         }
                     }));
         }
-        pc.addView(Ui.item(this, R.drawable.ic_globe, "Web protection (browser extension)",
-                "Blocks dangerous sites inside Firefox or Chromium browsers. No accessibility needed, so banking apps stay happy.", null,
+        pc.addView(Ui.item(this, R.drawable.ic_globe, "Web protection & ad blocker (browser extension)",
+                "Blocks ads, trackers and dangerous sites in Firefox or Chromium browsers with uBlock Origin / EasyList lists. No accessibility needed.", null,
                 new View.OnClickListener() { @Override public void onClick(View v) { toggleWeb(); } }));
         pc.addView(Ui.item(this, R.drawable.ic_link, "Check a link", "Or share a page from Firefox to Groveguard", null, new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -710,9 +710,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     /** Web protection is a browser extension now (accessibility services make banking apps refuse to run). */
     public void toggleWeb() {
         Ui.dialog(this).setTitle("Web protection")
-                .setMessage("Groveguard's web protection now lives in your browser as an extension. It checks every site you open against the "
-                        + "same dangerous-site list and shows a warning page before it loads. It works offline after downloading the list once, "
-                        + "and nothing you browse is sent anywhere.\n\n"
+                .setMessage("Groveguard's web protection lives in your browser as an extension. It blocks ads, trackers and malware with the "
+                        + "uBlock Origin and EasyList filter lists you choose (tap its icon \u2192 filter lists), warns before dangerous sites, "
+                        + "and updates everything daily. Nothing you browse is sent anywhere.\n\n"
                         + "Firefox: Firefox only installs extensions signed by Mozilla. Sign groveguard-firefox.xpi for free at addons.mozilla.org "
                         + "(Developer Hub \u2192 Submit \u2192 \u201COn your own\u201D), then in Firefox: Settings \u2192 About Firefox, tap the logo 5 times, "
                         + "go back, and choose \u201CInstall extension from file\u201D. Firefox Nightly can also install it unsigned.\n\n"

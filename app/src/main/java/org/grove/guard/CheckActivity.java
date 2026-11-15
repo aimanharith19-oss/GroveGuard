@@ -206,7 +206,13 @@ public class CheckActivity extends Activity {
                         if (in == null) throw new Exception("can't open");
                         Scanner.Hashes h = Scanner.hash(in);
                         String type = Scanner.match(h);
-                        res.add(new String[]{name, type == null ? "" : type, h.sha256});
+                        String vt = null;
+                        if (type == null && org.grove.guard.scan.VirusTotal.configured(getApplicationContext())) {
+                            runOnUiThread(new Runnable() { @Override public void run() { busy("Asking VirusTotal…"); } });
+                            org.grove.guard.scan.VirusTotal.Result r = org.grove.guard.scan.VirusTotal.lookup(getApplicationContext(), h.sha256);
+                            if (r != null) { vt = r.summary(); if (r.bad(getApplicationContext())) type = "VirusTotal " + r.malicious + "/" + r.total; }
+                        }
+                        res.add(new String[]{name, type == null ? "" : type, h.sha256, vt});
                         Events.add(type != null ? Events.THREAT : Events.SCAN, (type != null ? "Shared file is malware: " : "Shared file checked: ") + name,
                                 type != null ? "Matched a " + type + " signature" : "No known malware");
                     } catch (Exception e) {
@@ -241,6 +247,7 @@ public class CheckActivity extends Activity {
             n.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
             tx.addView(n);
             tx.addView(Ui.text(this, err ? "Couldn't read this file" : bad ? "Known malware (" + r[1] + " signature match)" : "No known malware", 13, bad ? p.danger : p.sub));
+            if (!err && r.length > 3 && r[3] != null) tx.addView(Ui.text(this, "VirusTotal: " + r[3], 13, bad ? p.danger : p.sub));
             row.addView(tx, Ui.lpW(1));
             if (!err) row.addView(Ui.button(this, "Look up", 2, new View.OnClickListener() {
                 @Override public void onClick(View v) {

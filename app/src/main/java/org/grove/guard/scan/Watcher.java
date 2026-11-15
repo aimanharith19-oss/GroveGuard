@@ -84,6 +84,9 @@ public final class Watcher {
                 scanQueue.execute(new Runnable() {
                     @Override public void run() {
                         int hits = Scanner.scanApp(app, pkg, replacing ? "app update" : "new app");
+                        if (hits == 0) try {
+                            VirusTotal.checkLater(app, new File(app.getPackageManager().getApplicationInfo(pkg, 0).sourceDir), replacing ? "app update" : "new app");
+                        } catch (Exception ignored) { }
                         if (hits == 0) Events.add(Events.SCAN, (replacing ? "Updated app checked: " : "New app checked: ") + Detect.appName(app, pkg), "No known malware");
                     }
                 });
@@ -186,7 +189,7 @@ public final class Watcher {
             q.execute(new Runnable() {
                 @Override public void run() {
                     if (!f.isFile() || f.length() == 0 || f.length() > Scanner.MAX_SIZE_REALTIME) return;
-                    Scanner.scanOne(app, f, "realtime", true);
+                    if (Scanner.scanOne(app, f, "realtime", true) == null && VirusTotal.risky(f)) VirusTotal.checkLater(app, f, "realtime");
                     if (scanned.incrementAndGet() % 20 == 0) StatusProvider.changed(app);
                 }
             });

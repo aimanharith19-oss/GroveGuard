@@ -1,24 +1,35 @@
 {
-  "name": "Groveguard web protection",
-  "version": "1.0.0",
-  "description": "Warns before you open a site on Groveguard's dangerous-site list (malware, phishing, trackers, ads). Works offline after the first download; nothing you browse is sent anywhere.",
+  "manifest_version": 2,
+  "name": "Groveguard",
+  "version": "1.1.0",
+  "description": "Blocks ads, trackers and malware with uBlock Origin and EasyList filter lists you choose, and warns before dangerous sites. Lists update daily; nothing you browse is sent anywhere.",
   "icons": {
     "48": "icon48.png",
     "96": "icon96.png",
     "128": "icon128.png"
   },
-  "manifest_version": 3,
   "permissions": [
-    "webNavigation"
-  ],
-  "host_permissions": [
-    "https://maintainteam.github.io/*"
+    "webNavigation",
+    "webRequest",
+    "webRequestBlocking",
+    "tabs",
+    "alarms",
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "sw.js"
+    "scripts": [
+      "bloom.js",
+      "adblock.js",
+      "bg.js"
+    ],
+    "persistent": true
   },
-  "action": {
+  "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Groveguard"
-  }
+    "default_title": "Groveguard",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "options_page": "options.html"
 }

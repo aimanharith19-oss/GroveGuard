@@ -1,10 +1,12 @@
-// Groveguard browser extension — background: download the list, check every page you open.
+// Groveguard browser extension — background: dangerous-site warning page + uBlock-style content blocking.
 // SPDX-License-Identifier: AGPL-3.0-or-later
 const api = typeof browser !== 'undefined' ? browser : chrome;
-const LIST = 'https://maintainteam.github.io/HypatiaDatabases/hypatia-domains-bloom.bin';
-const WEEK = 7 * 24 * 3600 * 1000;
-let bloom = null, loading = null;
+const DANGER = 'https://maintainteam.github.io/HypatiaDatabases/hypatia-domains-bloom.bin';
+const DAY = 24 * 3600 * 1000;
+let bloom = null, rules = null, loading = null;
+const counts = new Map(); // tabId -> blocked requests on the current page
 
+// ---------------------------------------------------------------- storage (IndexedDB)
 function db() {
   return new Promise((ok, no) => {
     const r = indexedDB.open('groveguard', 1);
@@ -17,53 +19,156 @@ async function kv(key, val) {
   return new Promise((ok, no) => {
     const tx = d.transaction('kv', val === undefined ? 'readonly' : 'readwrite');
     const s = tx.objectStore('kv');
-    const r = val === undefined ? s.get(key) : s.put(val, key);
+    const r = val === undefined ? s.get(key) : (val === null ? s.delete(key) : s.put(val, key));
     r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
   });
 }
-async function download() {
-  const res = await fetch(LIST, { cache: 'no-store' });
+async function settings() {
+  const s = (await kv('settings')) || {};
+  if (!s.lists) { s.lists = {}; for (const l of LISTS) s.lists[l.id] = l.on; }
+  if (s.blocking === undefined) s.blocking = true;
+  if (s.danger === undefined) s.danger = true;
+  if (!s.paused) s.paused = [];
+  if (!s.allowed) s.allowed = [];
+  if (s.custom === undefined) s.custom = '';
+  return s;
+}
+async function save(s) { await kv('settings', s); }
+
+// ---------------------------------------------------------------- lists
+async function downloadDanger() {
+  const res = await fetch(DANGER, { cache: 'no-store' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const buf = await res.arrayBuffer();
-  const b = new Bloom(buf); // validates the header
-  await kv('list', buf); await kv('updated', Date.now());
+  const b = new Bloom(buf);
+  await kv('danger', buf); await kv('danger-updated', Date.now());
   bloom = b;
 }
+async function downloadList(l) {
+  const r = new Rules().parse(await fetchList(l.url));
+  await kv('list:' + l.id, r.toJSON());
+  const meta = (await kv('meta')) || {};
+  meta[l.id] = { updated: Date.now(), rules: r.size() };
+  await kv('meta', meta);
+}
+/** Rebuilds the active rules from the switched-on lists (+ your own filters). */
+async function rebuild() {
+  const s = await settings(), r = new Rules();
+  for (const l of LISTS) {
+    if (!s.lists[l.id]) continue;
+    const j = await kv('list:' + l.id);
+    if (j) r.merge(Rules.fromJSON(j));
+  }
+  if (s.custom) r.parse(s.custom);
+  rules = r;
+  return r;
+}
+/** Downloads what's missing or older than a day (force = everything). */
+async function updateAll(force) {
+  const s = await settings(), meta = (await kv('meta')) || {}, errors = [];
+  for (const l of LISTS) {
+    if (!s.lists[l.id]) continue;
+    if (!force && meta[l.id] && Date.now() - meta[l.id].updated < DAY) continue;
+    try { await downloadList(l); } catch (e) { errors.push(l.name + ': ' + e.message); }
+  }
+  if (s.danger && (force || Date.now() - ((await kv('danger-updated')) || 0) > DAY)) {
+    try { await downloadDanger(); } catch (e) { errors.push('Dangerous-site list: ' + e.message); }
+  }
+  await kv('last-update', Date.now());
+  await rebuild();
+  return errors;
+}
 async function ensure() {
-  if (bloom) return bloom;
+  if (rules) return;
   if (!loading) loading = (async () => {
-    const buf = await kv('list');
+    const buf = await kv('danger');
     if (buf) bloom = new Bloom(buf);
-    const upd = (await kv('updated')) || 0;
-    if (!bloom) await download();
-    else if (Date.now() - upd > WEEK) download().catch(() => {});
-    return bloom;
+    await rebuild();
+    if (!(await kv('meta')) || !buf) await updateAll(false);
   })().finally(() => { loading = null; });
   return loading;
 }
-async function allowed() { return (await kv('allow')) || []; }
 
-async function check(details) {
+// ---------------------------------------------------------------- checks
+let cache = null; // settings snapshot for the synchronous request handler
+async function refreshCache() { cache = await settings(); }
+function hostOf(u) { try { return new URL(u).hostname; } catch (e) { return ''; } }
+function pausedOn(host) { return !!host && cache && cache.paused.some(p => host === p || host.endsWith('.' + p)); }
+
+// whole pages: dangerous-site warning
+api.webNavigation.onBeforeNavigate.addListener(async details => {
   if (details.frameId !== 0) return;
-  let u;
-  try { u = new URL(details.url); } catch (e) { return; }
+  counts.set(details.tabId, 0); badge(details.tabId);
+  let u; try { u = new URL(details.url); } catch (e) { return; }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
   try {
-    const b = await ensure();
-    if (!b) return;
-    const hit = listed(b, u.hostname, await allowed());
+    await ensure();
+    const s = cache || await settings();
+    if (!s.danger || !bloom) return;
+    const hit = listed(bloom, u.hostname, s.allowed);
     if (!hit) return;
-    const warn = api.runtime.getURL('warning.html') + '?u=' + encodeURIComponent(details.url) + '&l=' + encodeURIComponent(hit);
-    api.tabs.update(details.tabId, { url: warn });
-  } catch (e) { /* list not ready yet: let the page load */ }
+    api.tabs.update(details.tabId, { url: api.runtime.getURL('warning.html') + '?u=' + encodeURIComponent(details.url) + '&l=' + encodeURIComponent(hit) });
+  } catch (e) { }
+});
+
+// everything inside pages: ads, trackers, malware (blocking needs the rules in memory)
+api.webRequest.onBeforeRequest.addListener(d => {
+  if (!rules || !cache || !cache.blocking || d.type === 'main_frame') return {};
+  const page = hostOf(d.documentUrl || d.originUrl || d.initiator || '');
+  if (pausedOn(page)) return {};
+  let u; try { u = new URL(d.url); } catch (e) { return {}; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'ws:' && u.protocol !== 'wss:') return {};
+  if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) {
+    if (d.tabId >= 0) { counts.set(d.tabId, (counts.get(d.tabId) || 0) + 1); badge(d.tabId); }
+    return { cancel: true };
+  }
+  return {};
+}, { urls: ['<all_urls>'] }, ['blocking']);
+
+// element hiding (site-specific cosmetic filters)
+api.webNavigation.onCommitted.addListener(d => {
+  if (!rules || !cache || !cache.blocking) return;
+  const host = hostOf(d.url);
+  if (!host || pausedOn(host)) return;
+  const css = cssFor(rules, host);
+  if (css) try { api.tabs.insertCSS(d.tabId, { code: css, frameId: d.frameId, runAt: 'document_start', cssOrigin: 'user' }).catch(() => {}); } catch (e) {
+    try { api.tabs.insertCSS(d.tabId, { code: css, frameId: d.frameId, runAt: 'document_start' }); } catch (e2) { }
+  }
+});
+function badge(tabId) {
+  const ba = api.browserAction || api.action;
+  if (!ba || !ba.setBadgeText) return;
+  const n = counts.get(tabId) || 0;
+  try { ba.setBadgeText({ tabId, text: n ? String(n > 999 ? '999+' : n) : '' }); ba.setBadgeBackgroundColor && ba.setBadgeBackgroundColor({ color: '#60A917' }); } catch (e) { }
 }
-api.webNavigation.onBeforeNavigate.addListener(check);
-api.runtime.onMessage.addListener((m, s, reply) => {
+api.tabs.onRemoved.addListener(id => counts.delete(id));
+
+// ---------------------------------------------------------------- messages from the popup, options and warning pages
+api.runtime.onMessage.addListener((m, sender, reply) => {
   (async () => {
-    if (m.allow) { const a = await allowed(); a.push(m.allow); await kv('allow', a); }
-    if (m.update) { try { await download(); } catch (e) { return reply({ ok: false, err: String(e) }); } }
-    reply({ ok: true, updated: (await kv('updated')) || 0, ready: !!(await ensure().catch(() => null)), allowed: await allowed() });
+    const s = await settings();
+    if (m.allow) { s.allowed.push(m.allow); await save(s); }
+    if (m.setList) { s.lists[m.setList.id] = m.setList.on; await save(s); if (m.setList.on) { const l = LISTS.find(x => x.id === m.setList.id); if (l && !(await kv('list:' + l.id))) { try { await downloadList(l); } catch (e) { } } } await rebuild(); }
+    if (m.blocking !== undefined) { s.blocking = m.blocking; await save(s); }
+    if (m.danger !== undefined) { s.danger = m.danger; await save(s); }
+    if (m.pause) { const i = s.paused.indexOf(m.pause.host); if (m.pause.on && i < 0) s.paused.push(m.pause.host); if (!m.pause.on && i >= 0) s.paused.splice(i, 1); await save(s); }
+    if (m.custom !== undefined) { s.custom = m.custom; await save(s); await rebuild(); }
+    if (m.unallow) { s.allowed = s.allowed.filter(x => x !== m.unallow); await save(s); }
+    let errors = [];
+    if (m.update) errors = await updateAll(true);
+    await refreshCache();
+    reply({
+      ok: !errors.length, errors, settings: cache, lists: LISTS, meta: (await kv('meta')) || {},
+      rules: rules ? rules.size() : 0, danger: !!bloom, dangerUpdated: (await kv('danger-updated')) || 0,
+      lastUpdate: (await kv('last-update')) || 0, blockedHere: m.tabId !== undefined ? (counts.get(m.tabId) || 0) : 0,
+    });
   })();
   return true;
 });
-api.runtime.onInstalled.addListener(() => ensure().catch(() => {}));
+
+// ---------------------------------------------------------------- automatic updates (daily)
+if (api.alarms) {
+  api.alarms.create('update', { periodInMinutes: 60 * 6, delayInMinutes: 2 });
+  api.alarms.onAlarm.addListener(a => { if (a.name === 'update') updateAll(false).then(refreshCache).catch(() => {}); });
+}
+refreshCache().then(ensure).catch(() => {});

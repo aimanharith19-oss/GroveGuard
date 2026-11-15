@@ -167,6 +167,35 @@ public class SettingsPage {
         }));
         col.addView(fw);
 
+        // ---------------- VirusTotal
+        col.addView(Ui.section(a, "VirusTotal"));
+        LinearLayout vt = Ui.card(a);
+        final boolean hasKey = org.grove.guard.scan.VirusTotal.configured(a);
+        vt.addView(Ui.item(a, R.drawable.ic_search, "API key", hasKey ? "Set · " + Prefs.sp(a).getInt("vt_used", 0) + " lookups used today (500 a day)"
+                : "Free key from virustotal.com (sign up, then your profile \u2192 API key)", null, new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Ui.input(a, "VirusTotal API key", "Only file fingerprints (SHA-256) are sent to VirusTotal, never the files. Leave empty to turn it off.",
+                        "64-character key", Prefs.str(a, org.grove.guard.scan.VirusTotal.KEY, ""), new Ui.Cb<String>() {
+                            @Override public void on(String k) { Prefs.set(a, org.grove.guard.scan.VirusTotal.KEY, k.trim()); redraw(); }
+                        });
+            }
+        }));
+        if (hasKey) {
+            vt.addView(toggle(0, "Check new apps and downloads", "Apps you install and risky files saved to your storage (APK, ZIP, PDF, Office…) "
+                    + "that the local database didn't flag", org.grove.guard.scan.VirusTotal.AUTO, true, null));
+            final int[] mins = {1, 3, 5, 10};
+            int cur = Prefs.sp(a).getInt(org.grove.guard.scan.VirusTotal.MIN, 3), mi = 1;
+            for (int i = 0; i < mins.length; i++) if (mins[i] == cur) mi = i;
+            final int fmi = mi;
+            vt.addView(Ui.item(a, 0, "Treat as a threat when", cur + (cur == 1 ? " engine flags it" : " or more engines flag it"), null, new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    Ui.choose(a, "Threat when flagged by", new String[]{"1 engine (more false alarms)", "3 engines (recommended)", "5 engines", "10 engines"}, fmi,
+                            new Ui.Cb<Integer>() { @Override public void on(Integer w) { Prefs.sp(a).edit().putInt(org.grove.guard.scan.VirusTotal.MIN, mins[w]).apply(); redraw(); } });
+                }
+            }));
+        }
+        col.addView(vt);
+
         // ---------------- security
         col.addView(Ui.section(a, "Security"));
         LinearLayout sec = Ui.card(a);
