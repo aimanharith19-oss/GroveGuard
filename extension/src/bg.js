@@ -3,7 +3,7 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
 const DANGER = 'https://maintainteam.github.io/HypatiaDatabases/hypatia-domains-bloom.bin';
 const DAY = 24 * 3600 * 1000;
-let bloom = null, rules = null, loading = null;
+let bloom = null, rules = null, adult = null, loading = null;
 const counts = new Map(); // tabId -> blocked requests on the current page
 
 // ---------------------------------------------------------------- storage (IndexedDB)
@@ -53,14 +53,17 @@ async function downloadList(l) {
 }
 /** Rebuilds the active rules from the switched-on lists (+ your own filters). */
 async function rebuild() {
-  const s = await settings(), r = new Rules();
+  const s = await settings(), r = new Rules(), ad = new Rules();
+  let anyAdult = false;
   for (const l of LISTS) {
     if (!s.lists[l.id]) continue;
     const j = await kv('list:' + l.id);
-    if (j) r.merge(Rules.fromJSON(j));
+    if (!j) continue;
+    if (l.adult) { ad.merge(Rules.fromJSON(j)); anyAdult = true; } else r.merge(Rules.fromJSON(j));
   }
   if (s.custom) r.parse(s.custom);
   rules = r;
+  adult = anyAdult ? ad : null;
   return r;
 }
 /** Downloads what's missing or older than a day (force = everything). */
@@ -104,6 +107,10 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
   try {
     await ensure();
     const s = cache || await settings();
+    if (adult && !pausedOn(u.hostname) && shouldBlock(adult, u.hostname, u.pathname + u.search, null, details.url)) {
+      api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(u.hostname) });
+      return;
+    }
     if (!s.danger || !bloom) return;
     const hit = listed(bloom, u.hostname, s.allowed);
     if (!hit) return;
@@ -118,7 +125,7 @@ api.webRequest.onBeforeRequest.addListener(d => {
   if (pausedOn(page)) return {};
   let u; try { u = new URL(d.url); } catch (e) { return {}; }
   if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'ws:' && u.protocol !== 'wss:') return {};
-  if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) {
+  if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url) || (adult && shouldBlock(adult, u.hostname, u.pathname, page, null))) {
     if (d.tabId >= 0) { counts.set(d.tabId, (counts.get(d.tabId) || 0) + 1); badge(d.tabId); }
     return { cancel: true };
   }

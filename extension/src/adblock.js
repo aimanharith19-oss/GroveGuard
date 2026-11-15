@@ -20,6 +20,9 @@ const LISTS = [
   { id: 'easylist-social', group: 'Annoyances', name: 'EasyList – Social widgets', url: UBO + 'thirdparties/easylist/easylist-social.txt', on: false },
   { id: 'easylist-notifications', group: 'Annoyances', name: 'EasyList – Notifications', url: UBO + 'thirdparties/easylist/easylist-notifications.txt', on: false },
   { id: 'easylist-annoyances', group: 'Annoyances', name: 'EasyList – Other annoyances', url: UBO + 'thirdparties/easylist/easylist-annoyances.txt', on: false },
+  // 18+ sites: shown a full-page block screen instead of loading
+  { id: 'oisd-nsfw', group: 'Adult content (18+)', name: 'OISD NSFW', url: 'https://nsfw.oisd.nl/', on: false, adult: true },
+  { id: 'blp-porn', group: 'Adult content (18+)', name: 'Block List Project – Porn', url: 'https://blocklistproject.github.io/Lists/porn.txt', on: false, adult: true },
 ];
 const OK_OPTS = new Set(['third-party', '3p', 'script', 'image', 'xmlhttprequest', 'xhr', 'subdocument', 'frame', 'all',
   'important', 'media', 'object', 'ping', 'stylesheet', 'css', 'font', 'websocket', 'other']);

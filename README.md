@@ -50,6 +50,9 @@ lines; visited-site names are withheld), and controls Groveguard with the broadc
   `$third-party`, generic URL patterns, `@@` exceptions) and site-specific element hiding; "My filters"; pause per site;
   blocked count on the icon. Lists and the dangerous-site list **update automatically every day**.
   Extension format is Manifest V2 (blocking requests), supported by Firefox and Chromium browsers that still allow MV2.
+- **18+ blocking** (extension 1.2): *Adult content (18+)* lists — OISD NSFW and The Block List Project porn list
+  (AdGuard has no downloadable adult list; its adult blocking is the AdGuard DNS Family service). Off by default;
+  matching sites get a full-page "18+ site blocked" screen and adult content embedded in other pages is blocked.
 - **VirusTotal**: optional, with your free API key. New apps, risky new downloads and shared files that the local database
   didn't flag are looked up by SHA-256 (only the fingerprint is sent); flagged by N+ engines → threat. Rate-limited to the
   free key (4/min, 500/day).
