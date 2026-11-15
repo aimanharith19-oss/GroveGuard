@@ -92,8 +92,7 @@ public class SettingsPage {
                         });
                     }
                 }));
-        TextView szn = Ui.text(a, "With Shizuku, Groveguard runs the firewall, the Background and Apps tabs, scans app data folders, and can switch "
-                + "Web protection on without the accessibility settings screen. If Groveguard isn't listed in Shizuku, stop and start Shizuku once.", 12, p.sub);
+        TextView szn = Ui.text(a, "With Shizuku, Groveguard runs the firewall, the Background and Apps tabs, and scans app data folders. If Groveguard isn't listed in Shizuku, stop and start Shizuku once.", 12, p.sub);
         szn.setPadding(Ui.dp(a, 4), Ui.dp(a, 6), Ui.dp(a, 4), 0);
         sz.addView(szn);
         col.addView(sz);
@@ -143,17 +142,15 @@ public class SettingsPage {
         // ---------------- web
         col.addView(Ui.section(a, "Web protection"));
         LinearLayout web = Ui.card(a);
-        web.addView(toggle(R.drawable.ic_globe, "Go back automatically", "When a browser opens a listed site, leave it straight away instead of only warning",
-                Prefs.WEB_AUTO_BACK, false, null));
-        web.addView(toggle(0, "Check addresses in all apps", "Also look at web addresses shown in other apps (messages, email…). "
-                + "The list includes ad and tracker domains, so expect more alerts.", Prefs.WEB_ALL_APPS, false, null));
+        web.addView(Ui.item(a, R.drawable.ic_globe, "Browser extension", "Save the Firefox or Chromium extension and see how to install it", null,
+                new View.OnClickListener() { @Override public void onClick(View v) { ((MainActivity) a).toggleWeb(); } }));
         final Set<String> allowed = Prefs.set(a, Prefs.WEB_ALLOW);
         web.addView(Ui.item(a, 0, "Allowed sites", allowed.isEmpty() ? "None" : allowed.size() + (allowed.size() == 1 ? " site" : " sites"), null, new View.OnClickListener() {
             @Override public void onClick(View v) { editAllowed(); }
         }));
-        TextView wn = Ui.text(a, "Works with Firefox, Firefox Beta/Nightly, Focus, Fennec, IronFox, Iceraven, Tor Browser, Mull, Chrome, Brave, "
-                + "Vivaldi, Edge, Samsung Internet, DuckDuckGo and others. You can also share any page or link to Groveguard, "
-                + "or select text and choose “Check with Groveguard”.", 12, p.sub);
+        TextView wn = Ui.text(a, "Groveguard has no accessibility service, so banking apps don't flag it. "
+                + "\u201CAllowed sites\u201D apply to link checks in the app; the extension keeps its own list. You can also share any page or link to Groveguard, "
+                + "or select text and choose \u201CCheck with Groveguard\u201D. Grove Launcher's browser asks Groveguard directly.", 12, p.sub);
         wn.setPadding(Ui.dp(a, 4), Ui.dp(a, 6), Ui.dp(a, 4), 0);
         web.addView(wn);
         col.addView(web);

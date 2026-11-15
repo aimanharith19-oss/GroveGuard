@@ -31,9 +31,6 @@ public class RealtimeService extends Service {
         if (!want) {
             Watcher.stop();
             a.stopService(new Intent(a, RealtimeService.class));
-        } else if (LinkGuardService.isRunning()) {
-            Watcher.start(a, "accessibility");
-            a.stopService(new Intent(a, RealtimeService.class));
         } else {
             try { a.startForegroundService(new Intent(a, RealtimeService.class)); }
             catch (Exception e) { Events.add(Events.ERROR, "Couldn't start realtime scanning", "Open Groveguard once, or turn on Web protection."); }
@@ -57,7 +54,7 @@ public class RealtimeService extends Service {
                 .build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(7, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(7, n);
-        if (!Prefs.on(this, Prefs.REALTIME, false) || LinkGuardService.isRunning()) {
+        if (!Prefs.on(this, Prefs.REALTIME, false)) {
             stopSelf();
             return START_NOT_STICKY;
         }

@@ -5,13 +5,10 @@
  */
 package org.grove.guard.fw;
 
-import android.content.ComponentName;
 import android.content.Context;
 import android.os.Build;
-import android.provider.Settings;
 
 import org.grove.guard.Events;
-import org.grove.guard.LinkGuardService;
 
 /** Uses Shizuku (or root) to grant Groveguard what it needs, instead of sending you through Android's settings screens. */
 public final class Setup {
@@ -32,24 +29,4 @@ public final class Setup {
         return null;
     }
 
-    /** Switches the Web protection accessibility service on or off directly. Blocking. */
-    public static String setWebProtection(Context c, boolean on) {
-        String me = new ComponentName(c, LinkGuardService.class).flattenToString();
-        String cur = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        StringBuilder list = new StringBuilder();
-        if (cur != null) for (String s : cur.split(":")) {
-            if (s.isEmpty()) continue;
-            ComponentName cn = ComponentName.unflattenFromString(s);
-            if (cn != null && cn.getPackageName().equals(c.getPackageName())) continue;
-            if (list.length() > 0) list.append(':');
-            list.append(s);
-        }
-        if (on) { if (list.length() > 0) list.append(':'); list.append(me); }
-        String sh = "settings put secure enabled_accessibility_services " + (list.length() == 0 ? "null" : Shell.q(list.toString()))
-                + (on ? "\nsettings put secure accessibility_enabled 1" : "");
-        if (list.length() == 0) sh = "settings delete secure enabled_accessibility_services";
-        Shell.Result r = Shell.run(c, sh);
-        if (r == null) return Firewall.noBackend(c);
-        return r.ok() ? null : r.out.trim();
-    }
 }

@@ -562,13 +562,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
                         }
                     }));
         }
-        boolean web = LinkGuardService.enabledInSettings(this);
-        String webSub = !web ? "Warns when Firefox or another browser opens a dangerous site"
-                : !Sigs.domainsLoaded() ? (Sigs.busy() ? "On · loading the website list…" : "On · website list missing — update the database")
-                : Prefs.on(this, Prefs.WEB_AUTO_BACK, false) ? "On · leaves dangerous sites automatically" : "On · warns about dangerous sites";
-        pc.addView(Ui.item(this, R.drawable.ic_globe, "Web protection (Firefox & browsers)", webSub, web, new View.OnClickListener() {
-            @Override public void onClick(View v) { toggleWeb(); }
-        }));
+        pc.addView(Ui.item(this, R.drawable.ic_globe, "Web protection (browser extension)",
+                "Blocks dangerous sites inside Firefox or Chromium browsers. No accessibility needed, so banking apps stay happy.", null,
+                new View.OnClickListener() { @Override public void onClick(View v) { toggleWeb(); } }));
         pc.addView(Ui.item(this, R.drawable.ic_link, "Check a link", "Or share a page from Firefox to Groveguard", null, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Ui.input(MainActivity.this, "Check a link", null, "example.com or https://…", "", new Ui.Cb<String>() {
@@ -711,54 +707,53 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         } else requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 2);
     }
 
-    void toggleWeb() {
-        if (org.grove.guard.fw.Shell.backend(this) != null) {
-            final boolean on = !LinkGuardService.enabledInSettings(this);
-            Runnable go = new Runnable() {
-                @Override public void run() {
-                    if (on) Prefs.set(MainActivity.this, Prefs.WEB, true);
-                    App.IO.execute(new Runnable() {
-                        @Override public void run() {
-                            final String err = org.grove.guard.fw.Setup.setWebProtection(MainActivity.this, on);
-                            runOnUiThread(new Runnable() {
-                                @Override public void run() {
-                                    if (err != null) Ui.toast(MainActivity.this, err);
-                                    if (on && !new java.io.File(Sigs.dir(MainActivity.this), Sigs.DOMAINS).exists() && Sigs.networkOk(MainActivity.this, true)) update();
-                                    App.MAIN.postDelayed(new Runnable() { @Override public void run() { show(); } }, 800);
-                                }
-                            });
-                        }
-                    });
-                }
-            };
-            if (on) Ui.confirm(this, "Turn on Web protection?", "Groveguard reads the address bar of Firefox and other browsers and warns you about dangerous sites. "
-                    + "Nothing it reads is stored or sent anywhere. Shizuku switches it on for you.", "Turn on", go);
-            else go.run();
-            return;
-        }
-        if (LinkGuardService.enabledInSettings(this)) {
-            Ui.confirm(this, "Turn off Web protection?", "Android turns accessibility services off in its own settings. Find Groveguard web protection there and switch it off."
-                    + (Prefs.on(this, Prefs.REALTIME, false) ? "\n\nRealtime scanning will keep running as a background service." : ""), "Open settings", new Runnable() {
-                @Override public void run() { openAccessibility(); }
-            });
-            return;
-        }
-        Ui.dialog(this).setTitle("Turn on Web protection")
-                .setMessage("Groveguard reads the address bar of Firefox and other browsers, and warns you (or goes back) when a site is on its list of "
-                        + "dangerous domains. Nothing it reads is stored or sent anywhere.\n\nOn the next screen, tap “Groveguard web protection” and switch it on. "
-                        + "Some phones ask you to allow restricted settings first (App info → ⋮ → Allow restricted settings).")
-                .setPositiveButton("Continue", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) {
-                        Prefs.set(MainActivity.this, Prefs.WEB, true);
-                        if (!new java.io.File(Sigs.dir(MainActivity.this), Sigs.DOMAINS).exists() && Sigs.networkOk(MainActivity.this, true)) update();
-                        openAccessibility();
-                    }
+    /** Web protection is a browser extension now (accessibility services make banking apps refuse to run). */
+    public void toggleWeb() {
+        Ui.dialog(this).setTitle("Web protection")
+                .setMessage("Groveguard's web protection now lives in your browser as an extension. It checks every site you open against the "
+                        + "same dangerous-site list and shows a warning page before it loads. It works offline after downloading the list once, "
+                        + "and nothing you browse is sent anywhere.\n\n"
+                        + "Firefox: Firefox only installs extensions signed by Mozilla. Sign groveguard-firefox.xpi for free at addons.mozilla.org "
+                        + "(Developer Hub \u2192 Submit \u2192 \u201COn your own\u201D), then in Firefox: Settings \u2192 About Firefox, tap the logo 5 times, "
+                        + "go back, and choose \u201CInstall extension from file\u201D. Firefox Nightly can also install it unsigned.\n\n"
+                        + "Chromium browsers with extensions (Edge Canary, Lemur, Quetta\u2026): turn on developer mode on the extensions page "
+                        + "and load groveguard-chromium.zip.\n\nThe files are saved to your Downloads folder.")
+                .setPositiveButton("Save Firefox", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) { saveAsset("groveguard-firefox.xpi", "application/x-xpinstall"); }
+                })
+                .setNeutralButton("Save Chromium", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) { saveAsset("groveguard-chromium.zip", "application/zip"); }
                 })
                 .setNegativeButton(android.R.string.cancel, null).show();
     }
 
-    private void openAccessibility() {
-        try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception e) { Ui.toast(this, "Open Android Settings > Accessibility"); }
+    private void saveAsset(final String name, final String mime) {
+        App.IO.execute(new Runnable() {
+            @Override public void run() {
+                String err = null;
+                try (java.io.InputStream in = getAssets().open(name)) {
+                    java.io.OutputStream out;
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        android.content.ContentValues v = new android.content.ContentValues();
+                        v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
+                        v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime);
+                        v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS);
+                        Uri u = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                        if (u == null) throw new java.io.IOException("Couldn't create the file");
+                        out = getContentResolver().openOutputStream(u);
+                    } else {
+                        out = new java.io.FileOutputStream(new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), name));
+                    }
+                    try (java.io.OutputStream o = out) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
+                    }
+                } catch (Exception e) { err = e.getMessage(); }
+                final String fe = err;
+                runOnUiThread(new Runnable() { @Override public void run() { Ui.toast(MainActivity.this, fe == null ? "Saved " + name + " to Downloads" : "Couldn't save: " + fe); } });
+            }
+        });
     }
 
     // ---------------------------------------------------------------- Activity

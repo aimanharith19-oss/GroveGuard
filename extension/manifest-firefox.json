@@ -1,0 +1,38 @@
+{
+  "name": "Groveguard web protection",
+  "version": "1.0.0",
+  "description": "Warns before you open a site on Groveguard's dangerous-site list (malware, phishing, trackers, ads). Works offline after the first download; nothing you browse is sent anywhere.",
+  "icons": {
+    "48": "icon48.png",
+    "96": "icon96.png",
+    "128": "icon128.png"
+  },
+  "manifest_version": 2,
+  "permissions": [
+    "webNavigation",
+    "https://maintainteam.github.io/*"
+  ],
+  "background": {
+    "scripts": [
+      "bloom.js",
+      "bg.js"
+    ],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Groveguard",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "web-protection@groveguard.org",
+      "strict_min_version": "113.0"
+    },
+    "gecko_android": {
+      "strict_min_version": "113.0"
+    }
+  }
+}

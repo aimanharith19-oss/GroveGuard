@@ -43,6 +43,16 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.4 — web protection moved into the browser
+Banking apps refuse to run while an unknown accessibility service is installed, so Groveguard no longer has one.
+Web protection is now a **browser extension** (`extension/`): it downloads the same dangerous-domain list
+(MaintainTeam HypatiaDatabases), checks every page you open, sub-domains included, and shows a warning page with
+*go back* / *continue anyway*. It works offline after the first download and sends nothing anywhere.
+- `extension/groveguard-firefox.xpi` — Firefox for Android/desktop (needs Mozilla signing for release Firefox; Nightly can load it unsigned).
+- `extension/groveguard-chromium.zip` — Chromium browsers that support extensions (load unpacked).
+- The app can save both to Downloads (Protect → Web protection). Link checks by share/selection and Grove Launcher's
+  `checkUrl` still run in the app.
+
 ## What's new in 1.2 (security)
 - **App lock**: fingerprint or the phone's screen lock (Android's own prompt) to open Groveguard and to act on
   threat notifications; ask again every time or after 1/5/30 min; screenshots and the recents preview are hidden while on.

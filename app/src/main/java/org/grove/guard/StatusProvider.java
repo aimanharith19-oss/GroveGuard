@@ -144,7 +144,7 @@ public class StatusProvider extends ContentProvider {
         m.addRow(new Object[]{
                 Watcher.running() ? 1 : 0,
                 Prefs.on(c, Prefs.REALTIME, false) ? 1 : 0,
-                LinkGuardService.isRunning() ? 1 : 0,
+                0, // web protection is a browser extension now; the app can't see it
                 Sigs.loaded() ? 1 : 0,
                 Sigs.count(),
                 Sigs.lastUpdate(c),
