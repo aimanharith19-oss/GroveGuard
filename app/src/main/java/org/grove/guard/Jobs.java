@@ -51,6 +51,7 @@ public class Jobs extends JobService {
         if (p.getJobId() == UPDATE) {
             if (Sigs.updating()) return false;
             Sigs.update(this, false, null);
+            org.grove.guard.web.WebFilter.update(this, false); // web filter lists, daily
             // the update runs on its own; give it time, then finish the job
             App.MAIN.postDelayed(new Runnable() {
                 int waited;

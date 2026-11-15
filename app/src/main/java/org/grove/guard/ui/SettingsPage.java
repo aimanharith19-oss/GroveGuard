@@ -47,7 +47,7 @@ public class SettingsPage {
         // ---------------- accent colour (Windows Phone accents, as in Grove Music)
         col.addView(Ui.section(a, "Accent colour"));
         LinearLayout grid = Ui.col(a);
-        grid.setPadding(Ui.dp(a, 20), 0, Ui.dp(a, 20), Ui.dp(a, 4));
+        grid.setPadding(Ui.dp(a, 20), Ui.dp(a, 4), Ui.dp(a, 20), Ui.dp(a, 4));
         int curAccent = Ui.accent(a);
         LinearLayout rowL = null;
         for (int i = 0; i < Ui.ACCENTS.length; i++) {
@@ -57,7 +57,8 @@ public class SettingsPage {
             android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
             g.setColor(color);
             if (color == curAccent) g.setStroke(Ui.dp(a, 3), 0xFFFFFFFF);
-            sw.setBackground(g);
+            // drawn inside the box, so no edge of the outline gets cut off
+            sw.setBackground(new android.graphics.drawable.InsetDrawable(g, Ui.dp(a, 2)));
             sw.setContentDescription("Accent colour " + (i + 1));
             sw.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { Prefs.sp(a).edit().putInt("accent", color).apply(); a.recreate(); }

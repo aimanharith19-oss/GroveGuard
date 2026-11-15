@@ -90,6 +90,22 @@ public class StatusProvider extends ContentProvider {
         enforce();
         final Context c = getContext();
         android.os.Bundle out = new android.os.Bundle();
+        if ("checkRequest".equals(method) && arg != null) {
+            // Grove Launcher's browser: every page and request it loads (extras: page = page host, main = boolean, type)
+            org.grove.guard.web.WebFilter.Verdict v = org.grove.guard.web.WebFilter.check(c, arg, extras == null ? null : extras.getString("page"),
+                    extras != null && extras.getBoolean("main"), extras == null ? null : extras.getString("type"), "Grove Launcher");
+            out.putBoolean("block", v.block);
+            out.putString("kind", v.kind);
+            out.putString("why", v.why);
+            return out;
+        }
+        if ("css".equals(method)) { out.putString("css", org.grove.guard.web.WebFilter.css(c, arg)); return out; }
+        if ("webStatus".equals(method)) {
+            out.putBoolean("enabled", org.grove.guard.web.WebFilter.enabled(c));
+            out.putInt("rules", org.grove.guard.web.WebFilter.activeRules());
+            out.putBoolean("paused", arg != null && org.grove.guard.web.WebFilter.paused(c, arg));
+            return out;
+        }
         if ("checkUrl".equals(method)) {
             String host = org.grove.guard.scan.WebCheck.hostOfAddress(arg);
             if (host == null) { java.util.List<String> h = org.grove.guard.scan.WebCheck.hosts(arg); host = h.isEmpty() ? null : h.get(0); }

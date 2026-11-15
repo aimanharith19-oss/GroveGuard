@@ -43,6 +43,14 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.6
+- **Web tab** in the app: the same uBlock Origin / EasyList / AdGuard / 18+ filter lists as the extension (switch each on or off,
+  daily auto-update), *Block ads & trackers* switch, **my rules** (block / allow a site, wins over every list), paused sites, and a
+  **log** of every page and request with *always block / always allow / pause* per entry.
+- **Grove Launcher 1.49+** sends every page and request of its feed browser here (`call("checkRequest", url, {page, main, type})`,
+  `call("css", host)`), so its web filtering is controlled and logged in the web tab. Blocked pages show a Groveguard block page.
+- Accent colour boxes: the selected box's outline no longer loses its top edge.
+
 ## What's new in 1.5
 - **Ad blocker in the extension** (v1.1): uBlock Origin-style content blocking with the filter lists you choose —
   uBlock filters (Ads, Privacy, Badware, Quick fixes, Unbreak), EasyList, EasyPrivacy, AdGuard Mobile Ads, Peter Lowe's list,
