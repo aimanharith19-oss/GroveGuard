@@ -409,7 +409,11 @@ public final class Ui {
                 TextView ours = button(c, String.valueOf(nb.getText()), which == DialogInterface.BUTTON_POSITIVE ? 0 : 1, new View.OnClickListener() {
                     @Override public void onClick(View v) { nb.performClick(); }
                 });
-                LinearLayout.LayoutParams blp = lpW(1);
+                // same size as the big "scan now" / "update database" buttons
+                ours.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+                ours.setTypeface(light());
+                ours.setPadding(dp(c, 8), 0, dp(c, 8), 0);
+                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(0, dp(c, 56), 1);
                 blp.setMargins(bar.getChildCount() == 0 ? 0 : dp(c, 10), 0, 0, 0);
                 bar.addView(ours, blp);
             }

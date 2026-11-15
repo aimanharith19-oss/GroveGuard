@@ -473,9 +473,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             scanFile.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
             hero.addView(scanFile);
             onProgress(Scanner.progressDone(), Scanner.progressTotal(), Scanner.progressFile());
-            hero.addView(spacedRow(Ui.button(this, "Stop scan", 1, new View.OnClickListener() {
+            hero.addView(stacked(Ui.bigButton(this, R.drawable.ic_stop, "Stop scan", 1, new View.OnClickListener() {
                 @Override public void onClick(View v) { Scanner.cancel(); Ui.toast(MainActivity.this, "Stopping…"); }
-            }), null));
+            }), 16));
         } else {
             View scanBtn = Ui.bigButton(this, R.drawable.ic_search, "Scan now", 0, new View.OnClickListener() {
                 @Override public void onClick(View v) { startScan(); }
