@@ -99,6 +99,10 @@ public class StatusProvider extends ContentProvider {
             out.putString("why", v.why);
             return out;
         }
+        if ("visit".equals(method) && arg != null) { // a page opened in Grove Launcher's browser (extras: title) → Websites history
+            org.grove.guard.web.WebHistory.add(arg, extras == null ? null : extras.getString("title"));
+            return out;
+        }
         if ("css".equals(method)) { out.putString("css", org.grove.guard.web.WebFilter.css(c, arg)); return out; }
         if ("webStatus".equals(method)) {
             out.putBoolean("enabled", org.grove.guard.web.WebFilter.enabled(c));

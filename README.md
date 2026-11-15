@@ -43,6 +43,9 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.6.1
+- **Website history**: pages opened in Grove Launcher's browser are listed in the web tab → History (tap to open, hold to remove, Clear history). Kept on the phone only.
+
 ## What's new in 1.6
 - **Web tab** in the app: the same uBlock Origin / EasyList / AdGuard / 18+ filter lists as the extension (switch each on or off,
   daily auto-update), *Block ads & trackers* switch, **my rules** (block / allow a site, wins over every list), paused sites, and a

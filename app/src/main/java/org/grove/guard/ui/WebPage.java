@@ -79,6 +79,34 @@ public class WebPage {
                 new View.OnClickListener() { @Override public void onClick(View v) { WebFilter.setPaused(a, h, false); redraw(); } }));
         col.addView(mr);
 
+        // history of sites opened in Grove Launcher's browser
+        col.addView(Ui.section(a, "History"));
+        LinearLayout hs = Ui.card(a);
+        List<org.grove.guard.web.WebHistory.Visit> hist = org.grove.guard.web.WebHistory.all();
+        if (hist.isEmpty()) hs.addView(Ui.text(a, "Nothing yet. Websites you open in Grove Launcher's browser are listed here.", 14, p.sub));
+        else {
+            LinearLayout hc = new MainActivity.FlowLayout(a);
+            hc.addView(Ui.chip(a, "Clear history", false, new View.OnClickListener() {
+                @Override public void onClick(View v) { org.grove.guard.web.WebHistory.clear(); redraw(); }
+            }));
+            hs.addView(hc);
+        }
+        int hn = 0;
+        for (final org.grove.guard.web.WebHistory.Visit v : hist) {
+            if (++hn > 100) break;
+            hs.addView(Ui.item(a, 0, v.title.isEmpty() ? org.grove.guard.web.WebHistory.host(v.url) : v.title,
+                    org.grove.guard.web.WebHistory.host(v.url) + " · " + Events.ago(a, v.time) + " · hold to remove", null, new View.OnClickListener() {
+                @Override public void onClick(View x) {
+                    try { a.startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(v.url))); } catch (Exception ignored) { }
+                }
+            }));
+            LinearLayout last = (LinearLayout) hs.getChildAt(hs.getChildCount() - 1);
+            last.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View x) { org.grove.guard.web.WebHistory.remove(v); redraw(); return true; }
+            });
+        }
+        col.addView(hs);
+
         // log
         col.addView(Ui.section(a, "Log"));
         LinearLayout lg = Ui.card(a);
