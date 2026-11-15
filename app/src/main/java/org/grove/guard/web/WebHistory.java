@@ -69,6 +69,15 @@ public final class WebHistory {
         });
     }
 
+    /** Grove Launcher reporting a page it opened: recorded unless its filter check already did (within a minute). */
+    public static void visit(Context c, String url) {
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) return;
+        synchronized (WebHistory.class) { if (url.equals(lastHost) && System.currentTimeMillis() - lastHostTime < 60000) return; }
+        String host = android.net.Uri.parse(url).getHost();
+        if (host == null || host.isEmpty()) return;
+        add(c, host.toLowerCase(java.util.Locale.ROOT), url, false, "", "Grove Launcher");
+    }
+
     /** Records visits sent by the browser extension (keeps their own times). */
     public static void addMany(Context c, List<Visit> list) {
         if (list.isEmpty()) return;
