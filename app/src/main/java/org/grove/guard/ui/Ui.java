@@ -369,6 +369,16 @@ public final class Ui {
         return new AlertDialog.Builder(c, android.R.style.Theme_DeviceDefault_Dialog_Alert) {
             @Override public AlertDialog create() {
                 final AlertDialog d = super.create();
+                // position the box before it appears (setting it on show made it jump from the centre to the top)
+                android.view.Window w = d.getWindow();
+                if (w != null) {
+                    w.setBackgroundDrawable(new ColorDrawable(mix(accent(c), 0xFF000000, 0.78f)));
+                    w.setGravity(Gravity.TOP);
+                    w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    w.setWindowAnimations(android.R.style.Animation_Toast);
+                    w.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                            | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+                }
                 d.setOnShowListener(new DialogInterface.OnShowListener() {
                     @Override public void onShow(DialogInterface di) { style(c, d); }
                 });
@@ -381,9 +391,12 @@ public final class Ui {
         try {
             android.view.Window w = d.getWindow();
             if (w == null) return;
-            w.setBackgroundDrawable(new ColorDrawable(mix(accent(c), 0xFF000000, 0.78f)));
             w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            w.setGravity(Gravity.TOP);
+            // Windows Phone message box: the content drops in from the top
+            View content = w.getDecorView();
+            content.setTranslationY(-dp(c, 40));
+            content.setAlpha(0f);
+            content.animate().translationY(0).alpha(1f).setDuration(260).setInterpolator(WP_EASE).start();
             int tid = c.getResources().getIdentifier("alertTitle", "id", "android");
             TextView title = tid != 0 ? (TextView) d.findViewById(tid) : null;
             if (title != null) {
