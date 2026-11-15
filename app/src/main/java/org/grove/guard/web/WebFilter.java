@@ -78,7 +78,9 @@ public final class WebFilter {
 
     public static final String ENABLED = "web_blocking", MY_BLOCK = "web_my_block", MY_ALLOW = "web_my_allow", PAUSED = "web_paused";
 
-    private static volatile AdRules rules, adult;
+    private static volatile AdRules rules;
+    private static volatile DomainSet adult; // the switched-on 18+ lists, loaded on their own (fast) so they work from the first page
+    private static volatile boolean adultLoaded;
     private static volatile boolean loading, updating;
 
     public interface Listener { void onWebChanged(); }
@@ -104,7 +106,10 @@ public final class WebFilter {
         final ListInfo fl = l;
         App.IO.execute(new Runnable() {
             @Override public void run() {
-                if (listOn(c, fl) && !file(c, fl).exists()) download(c, fl);
+                if (listOn(c, fl) && !file(c, fl).exists()) {
+                    String e = download(c, fl);
+                    Prefs.set(c, "web_err_" + fl.id, e == null ? "" : e);
+                }
                 rebuild(c);
             }
         });
@@ -152,13 +157,13 @@ public final class WebFilter {
     static File dir(Context c) { File d = new File(c.getFilesDir(), "weblists"); //noinspection ResultOfMethodCallIgnored
         d.mkdirs(); return d; }
 
-    static File file(Context c, ListInfo l) { return new File(dir(c), l.id + ".gz"); }
+    static File file(Context c, ListInfo l) { return new File(dir(c), l.id + (l.adult ? ".dom" : ".gz")); }
 
     public static long updated(Context c, ListInfo l) { File f = file(c, l); return f.exists() ? f.lastModified() : 0; }
 
     public static int ruleCount(Context c, ListInfo l) { return Prefs.sp(c).getInt("web_count_" + l.id, 0); }
 
-    public static int activeRules() { AdRules r = rules, a = adult; return (r == null ? 0 : r.size()) + (a == null ? 0 : a.size()); }
+    public static int activeRules() { AdRules r = rules; DomainSet a = adult; return (r == null ? 0 : r.size()) + (a == null ? 0 : a.size()); }
 
     public static long lastUpdate(Context c) { return Prefs.sp(c).getLong("web_last_update", 0); }
 
@@ -195,6 +200,7 @@ public final class WebFilter {
 
     /** Downloads and compiles one list. Blocking. Returns an error or null. */
     static String download(Context c, ListInfo l) {
+        if (l.adult) return downloadDomains(c, l);
         try {
             AdRules r = new AdRules();
             r.parse(new BufferedReader(new StringReader(fetch(l.url, 0))));
@@ -210,22 +216,68 @@ public final class WebFilter {
         }
     }
 
+    /** 18+ lists: streamed straight into a compact set (they're hundreds of thousands of sites). */
+    private static String downloadDomains(Context c, ListInfo l) {
+        HttpURLConnection con = null;
+        try {
+            con = (HttpURLConnection) new URL(l.url).openConnection();
+            con.setConnectTimeout(30000);
+            con.setReadTimeout(60000);
+            con.setRequestProperty("User-Agent", "Groveguard");
+            if (con.getResponseCode() != 200) throw new Exception("HTTP " + con.getResponseCode());
+            DomainSet d;
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"), 1 << 16)) { d = DomainSet.parse(br); }
+            if (d.size() < 100) throw new Exception("the list looks empty (" + d.size() + " sites)");
+            d.save(file(c, l));
+            Prefs.sp(c).edit().putInt("web_count_" + l.id, d.size()).apply();
+            adultLoaded = false; // reload with the new list
+            return null;
+        } catch (Throwable e) {
+            return l.name + ": " + e.getMessage();
+        } finally {
+            if (con != null) con.disconnect();
+        }
+    }
+
+    /** Is any 18+ list switched on? */
+    public static boolean adultWanted(Context c) { for (ListInfo l : LISTS) if (l.adult && listOn(c, l)) return true; return false; }
+
+    /** Number of 18+ sites blocked right now (-1 = switched on but not downloaded yet). */
+    public static int adultSites(Context c) {
+        if (!adultWanted(c)) return 0;
+        loadAdult(c);
+        DomainSet d = adult;
+        return d == null ? -1 : d.size();
+    }
+
+    /** Loads the switched-on 18+ lists (milliseconds). */
+    static synchronized void loadAdult(Context c) {
+        if (adultLoaded) return;
+        List<DomainSet> sets = new ArrayList<>();
+        for (ListInfo l : LISTS) {
+            if (!l.adult || !listOn(c, l) || !file(c, l).exists()) continue;
+            try { sets.add(DomainSet.load(file(c, l))); } catch (Throwable ignored) { }
+        }
+        adult = sets.isEmpty() ? null : sets.size() == 1 ? sets.get(0) : DomainSet.merge(sets);
+        adultLoaded = true;
+    }
+
     /** Rebuilds the active rules from the switched-on lists. Blocking. */
     public static synchronized void rebuild(Context c) {
         loading = true;
         try {
-            AdRules r = new AdRules(), ad = new AdRules();
-            boolean anyAdult = false;
+            adultLoaded = false;
+            loadAdult(c);
+            AdRules r = new AdRules();
             for (ListInfo l : LISTS) {
-                if (!listOn(c, l) || !file(c, l).exists()) continue;
+                if (l.adult || !listOn(c, l) || !file(c, l).exists()) continue;
                 AdRules one = new AdRules();
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file(c, l))), "UTF-8"))) {
                     one.readCompact(br);
                 } catch (Exception ignored) { continue; }
-                if (l.adult) { ad.merge(one); anyAdult = true; } else r.merge(one);
+                r.merge(one);
             }
             rules = r;
-            adult = anyAdult ? ad : null;
         } finally {
             loading = false;
             changed();
@@ -237,7 +289,9 @@ public final class WebFilter {
         App.IO.execute(new Runnable() {
             @Override public void run() {
                 rebuild(c);
-                if (System.currentTimeMillis() - lastUpdate(c) > 24 * 3600 * 1000L) update(c, false);
+                boolean missing = false;
+                for (ListInfo l : LISTS) if (listOn(c, l) && !file(c, l).exists()) missing = true;
+                if (missing || System.currentTimeMillis() - lastUpdate(c) > 24 * 3600 * 1000L) update(c, false);
             }
         });
     }
@@ -257,6 +311,7 @@ public final class WebFilter {
                         if (!listOn(c, l)) continue;
                         if (!force && System.currentTimeMillis() - updated(c, l) < 24 * 3600 * 1000L) continue;
                         String e = download(c, l);
+                        Prefs.set(c, "web_err_" + l.id, e == null ? "" : e);
                         if (e != null) errors.add(e); else n++;
                     }
                     Prefs.sp(c).edit().putLong("web_last_update", System.currentTimeMillis()).apply();
@@ -301,8 +356,9 @@ public final class WebFilter {
         if (inList(Prefs.set(c, MY_BLOCK), host)) return new Verdict(true, "you", "your block list");
         boolean paused = inList(Prefs.set(c, PAUSED), main ? host : pageHost);
         if (rules == null) ensureLoaded(c);
-        AdRules ad = adult;
-        if (!paused && ad != null && ad.shouldBlockUrl(host, path, main ? null : pageHost, null)) return new Verdict(true, "adult", "18+ list");
+        if (!adultLoaded) loadAdult(c); // fast, so 18+ sites are blocked even on the first page after Groveguard starts
+        DomainSet ad = adult;
+        if (!paused && ad != null && ad.contains(host)) return new Verdict(true, "adult", "18+ list");
         if (main) {
             WebCheck.Hit hit = Sigs.domainsLoaded() ? WebCheck.check(c, host) : null;
             if (hit != null && !paused) return new Verdict(true, "danger", "dangerous-site list" + (hit.listed.equals(host) ? "" : " (" + hit.listed + ")"));

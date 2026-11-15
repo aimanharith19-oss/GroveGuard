@@ -43,6 +43,12 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.8
+- **18+ blocking fixed**: the 18+ lists are kept as compact site fingerprints (~8 bytes a site, load in milliseconds), so they block from the very first page after Groveguard starts, without the memory spikes of before. The web tab shows how many 18+ sites are blocked, and a list whose download failed says so.
+- **The app controls the extension**: once linked (history tab), the extension follows the web tab — filter lists, 18+, your block/allow rules, paused sites. Changes made in the extension are saved in the app too.
+- **Web tab log includes the extension**: pages and blocked requests from Firefox/Chromium show up next to Grove Launcher's.
+- Extension 1.5: your blocked sites and 18+ sites are stopped before the page starts loading.
+
 ## What's new in 1.7
 - **History tab**: every website opened in Grove Launcher's browser, in Firefox/Chromium with the extension, and every link you check — blocked or allowed, with why. Grouped by day, searchable, filter blocked/allowed; tap a visit to open it, always block/allow it, copy or delete it; clear the last hour, older than 1/7/30 days, or everything.
 - **Extension 1.4**: its own saved history page (popup › history), and it can send visits to the app: link it with the pairing code from Groveguard › history › link browser extension. Visits go only to the app on the same phone (127.0.0.1, code required); if the app isn't running they're kept and sent later.

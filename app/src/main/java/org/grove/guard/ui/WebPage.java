@@ -46,7 +46,18 @@ public class WebPage {
         st.addView(Ui.item(a, R.drawable.ic_refresh, "Update lists now", "Lists also update by themselves every day", null, new View.OnClickListener() {
             @Override public void onClick(View v) { WebFilter.update(a, true); Ui.toast(a, "Updating filter lists…"); redraw(); }
         }));
-        st.addView(Ui.item(a, R.drawable.ic_link, "Browser extension", "Same protection inside Firefox or Chromium browsers", null, new View.OnClickListener() {
+        int adultN = WebFilter.adultSites(a);
+        if (adultN != 0) st.addView(Ui.item(a, R.drawable.ic_shield, "18+ blocking", adultN > 0
+                ? String.format(java.util.Locale.getDefault(), "On · %,d sites blocked, in Grove Launcher and the linked extension", adultN)
+                : "Switched on, but the list isn't downloaded yet — tap to download", null, new View.OnClickListener() {
+            @Override public void onClick(View v) { WebFilter.update(a, true); Ui.toast(a, "Downloading lists…"); redraw(); }
+        }));
+        String code = org.grove.guard.web.ExtSync.code(a);
+        long seen = org.grove.guard.web.ExtSync.lastReceived();
+        st.addView(Ui.item(a, R.drawable.ic_link, "Browser extension", code.isEmpty()
+                ? "Not linked · install it in Firefox or Chromium, then link it in the history tab so this tab controls it"
+                : "Linked (code " + code + ") · follows this tab's settings · " + (seen > 0 ? "last contact " + Events.ago(a, seen) : "not heard from yet since Groveguard started"),
+                null, new View.OnClickListener() {
             @Override public void onClick(View v) { ((MainActivity) a).toggleWeb(); }
         }));
         col.addView(st);
@@ -112,7 +123,7 @@ public class WebPage {
             title.setTextColor(e.blocked ? p.danger : 0xFFFFFFFF);
             lg.addView(r);
         }
-        if (n == 0) lg.addView(Ui.text(a, "Nothing yet. Pages and requests from Grove Launcher's browser show up here as you browse.", 14, p.sub));
+        if (n == 0) lg.addView(Ui.text(a, "Nothing yet. Pages and requests from Grove Launcher's browser — and from Firefox/Chromium once the extension is linked (history tab) — show up here as you browse.", 14, p.sub));
         col.addView(lg);
 
         // filter lists
@@ -128,7 +139,8 @@ public class WebPage {
             }
             boolean lo = WebFilter.listOn(a, l);
             long up = WebFilter.updated(a, l);
-            String sub = up > 0 ? String.format(java.util.Locale.getDefault(), "%,d rules · ", WebFilter.ruleCount(a, l)) + Events.ago(a, up)
+            String err = org.grove.guard.Prefs.str(a, "web_err_" + l.id, "");
+            String sub = lo && up == 0 && !err.isEmpty() ? "Download failed — " + err + " · tap Update lists now" : up > 0 ? String.format(java.util.Locale.getDefault(), "%,d rules · ", WebFilter.ruleCount(a, l)) + Events.ago(a, up)
                     : lo ? "Not downloaded yet" : "Off";
             fl.addView(Ui.item(a, 0, l.name, sub, lo, new View.OnClickListener() {
                 @Override public void onClick(View v) {

@@ -6,4 +6,4 @@ if (q.get('r') === 'you') {
   document.querySelector('.dim').textContent = 'You added this site to your block list. Remove it in Groveguard \u2192 logs or filter lists \u2192 my rules.';
 }
 document.getElementById('host').textContent = h.replace(/\./g, '[.]');
-document.getElementById('back').onclick = () => { if (history.length > 2) history.go(-2); else location.href = 'about:blank'; };
+document.getElementById('back').onclick = () => { if (history.length > 1) history.back(); else location.href = 'about:blank'; };

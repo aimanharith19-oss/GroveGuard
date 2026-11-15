@@ -114,16 +114,24 @@ public final class ExtSync {
         }
         if (req.length < 2) return;
         if ("OPTIONS".equals(req[0])) { reply(out, 204, ""); return; }
-        if (!"POST".equals(req[0]) || !"/v1/visits".equals(req[1])) { reply(out, 404, "not found"); return; }
+        String path = req[1];
+        boolean get = "GET".equals(req[0]) && "/v1/settings".equals(path);
+        if (!get && !("POST".equals(req[0]) && ("/v1/visits".equals(path) || "/v1/log".equals(path) || "/v1/set".equals(path)))) { reply(out, 404, "not found"); return; }
         String want = code(c);
         if (want.isEmpty() || !MessageDigest.isEqual(want.getBytes(StandardCharsets.UTF_8), key.toUpperCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8))) {
             reply(out, 403, "wrong code"); return;
         }
+        lastReceived = System.currentTimeMillis();
+        if (get) { reply(out, 200, settings(c).toString()); return; }
         if (len <= 0 || len > MAX_BODY) { reply(out, 413, "too big"); return; }
         byte[] body = new byte[len];
         int got = 0;
         while (got < len) { int n = in.read(body, got, len - got); if (n < 0) break; got += n; }
-        JSONArray arr = new JSONArray(new String(body, 0, got, StandardCharsets.UTF_8));
+        String text = new String(body, 0, got, StandardCharsets.UTF_8);
+        String app0 = (browser.isEmpty() ? "Browser" : browser.length() > 20 ? browser.substring(0, 20) : browser) + " (extension)";
+        if ("/v1/set".equals(path)) { set(c, new JSONObject(text)); reply(out, 200, settings(c).toString()); return; }
+        if ("/v1/log".equals(path)) { addLog(new JSONArray(text), app0); reply(out, 200, "ok"); return; }
+        JSONArray arr = new JSONArray(text);
         String app = (browser.isEmpty() ? "Browser" : browser.length() > 20 ? browser.substring(0, 20) : browser) + " (extension)";
         long now = System.currentTimeMillis();
         List<WebHistory.Visit> list = new ArrayList<>();
@@ -143,6 +151,57 @@ public final class ExtSync {
         WebHistory.addMany(c, list);
         lastReceived = now;
         reply(out, 200, "ok");
+    }
+
+    /** What the extension should use: the app's switches, lists and your rules (the app is in charge). */
+    static JSONObject settings(Context c) throws Exception {
+        JSONObject o = new JSONObject();
+        o.put("blocking", WebFilter.enabled(c));
+        JSONObject l = new JSONObject();
+        for (WebFilter.ListInfo i : WebFilter.LISTS) l.put(i.id, WebFilter.listOn(c, i));
+        o.put("lists", l);
+        o.put("myBlock", new JSONArray(WebFilter.myBlock(c)));
+        o.put("myAllow", new JSONArray(WebFilter.myAllow(c)));
+        o.put("paused", new JSONArray(new java.util.TreeSet<>(Prefs.set(c, WebFilter.PAUSED))));
+        return o;
+    }
+
+    /** A change made in the extension (always block/allow, a list switch, pause) — saved in the app. */
+    private static void set(final Context c, JSONObject o) {
+        final JSONObject f = o;
+        org.grove.guard.App.MAIN.post(new Runnable() {
+            @Override public void run() {
+                try {
+                    JSONObject r = f.optJSONObject("rule");
+                    if (r != null) WebFilter.setRule(c, r.optString("host"), r.optString("list"));
+                    JSONObject l = f.optJSONObject("list");
+                    if (l != null) { WebFilter.ListInfo i = WebFilter.find(l.optString("id")); if (i != null) WebFilter.setList(c, i, l.optBoolean("on")); }
+                    JSONObject p = f.optJSONObject("pause");
+                    if (p != null && !p.optString("host").isEmpty()) WebFilter.setPaused(c, p.optString("host"), p.optBoolean("on"));
+                    if (f.has("blocking")) Prefs.set(c, WebFilter.ENABLED, f.optBoolean("blocking"));
+                    WebFilter.changed();
+                } catch (Exception ignored) { }
+            }
+        });
+    }
+
+    /** Pages and blocked requests from the extension, shown in the web tab's log. */
+    private static void addLog(JSONArray a, String app) {
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < a.length() && i < 1000; i++) {
+            JSONObject o = a.optJSONObject(i);
+            if (o == null) continue;
+            String host = o.optString("h"), url = o.optString("u");
+            if (host.isEmpty() || host.length() > 253) continue;
+            long t = o.optLong("t", now);
+            if (t > now + 60000 || t < 0) t = now;
+            String type = o.optString("type", "request");
+            if (type.length() > 20) type = type.substring(0, 20);
+            String page = o.optString("page"), why = o.optString("w");
+            WebFilter.log(new WebFilter.Entry(t, type, host.toLowerCase(Locale.ROOT), url.length() > 2000 ? url.substring(0, 2000) : url,
+                    page.length() > 253 ? "" : page, o.optBoolean("b"), why.length() > 100 ? why.substring(0, 100) : why, app));
+        }
+        WebFilter.changed();
     }
 
     private static void reply(OutputStream out, int code, String text) throws java.io.IOException {

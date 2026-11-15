@@ -10,6 +10,37 @@ function log(type, url, page, verdict, why) {
   let host = ''; try { host = new URL(url).hostname; } catch (e) { }
   LOG.push({ t: Date.now(), type, host, url: url.length > 300 ? url.slice(0, 300) + '…' : url, page: page || '', verdict, why: why || '' });
   if (LOG.length > LOG_MAX) LOG.splice(0, LOG.length - LOG_MAX);
+  // linked to the Groveguard app: pages and blocked requests also go to its web tab log
+  if (cache && cache.appKey && (type === 'page' || verdict === 'blocked') && LOGBOX.length < 2000)
+    LOGBOX.push({ t: Date.now(), type, h: host, u: url.length > 2000 ? url.slice(0, 2000) : url, page: page || '', b: verdict === 'blocked', w: why || '' });
+}
+const LOGBOX = [];
+// ---------------------------------------------------------------- 18+ lists: a plain set of sites (hundreds of thousands — Rules would be too heavy)
+function domainOf(line) {
+  let s = line.trim();
+  if (!s || '!#['.includes(s[0]) || s.includes('##') || s.includes('#@#') || s.startsWith('@@')) return null;
+  const hash = s.indexOf('#'); if (hash > 0) s = s.slice(0, hash).trim();
+  if (s.startsWith('||')) {
+    const m = /^\|\|([^\^\/$|]+)(.*)$/.exec(s); if (!m) return null;
+    if (!(m[2] === '' || m[2] === '^' || m[2].startsWith('^$') || m[2] === '^|')) return null;
+    s = m[1];
+  } else {
+    const p = s.split(/\s+/);
+    if (p.length >= 2 && ['0.0.0.0', '127.0.0.1', '::', '::1'].includes(p[0])) s = p[1]; else if (p.length === 1) s = p[0]; else return null;
+    if (s.startsWith('*.')) s = s.slice(2); else if (s.startsWith('.')) s = s.slice(1);
+  }
+  s = s.toLowerCase();
+  if (s.length < 3 || !s.includes('.') || s === 'localhost' || s === '0.0.0.0' || !/^[a-z0-9._-]+$/.test(s)) return null;
+  return s;
+}
+function adultHit(host) {
+  if (!adult || !host) return false;
+  let s = host.toLowerCase();
+  for (;;) {
+    if (adult.has(s)) return true;
+    const d = s.indexOf('.'); if (d < 0 || s.indexOf('.', d + 1) < 0) return false;
+    s = s.slice(d + 1);
+  }
 }
 // ---------------------------------------------------------------- history (every website opened, kept in this browser) + sync to the Groveguard app
 const HIST_MAX = 20000;
@@ -39,17 +70,38 @@ async function syncApp() {
   await histLoad();
   syncing = true;
   try {
-    while (OUTBOX.length) {
+    const st = await pullSettings();
+    appState = st === 403 ? 'wrong code' : st === 200 ? 'ok' : 'error ' + st;
+    while (appState === 'ok' && OUTBOX.length) {
       const batch = OUTBOX.slice(0, 200);
-      const r = await fetch('http://127.0.0.1:47913/v1/visits', { method: 'POST', cache: 'no-store', credentials: 'omit',
-        headers: { 'Content-Type': 'text/plain', 'X-Groveguard-Key': cache.appKey, 'X-Groveguard-Browser': BROWSER }, body: JSON.stringify(batch) });
-      if (r.status === 403) { appState = 'wrong code'; break; }
-      if (!r.ok) { appState = 'error ' + r.status; break; }
-      OUTBOX.splice(0, batch.length); appState = 'ok';
+      const r = await appPost('/v1/visits', batch);
+      if (!r.ok) { appState = r.status === 403 ? 'wrong code' : 'error ' + r.status; break; }
+      OUTBOX.splice(0, batch.length);
       await kv('outbox', OUTBOX);
     }
+    while (appState === 'ok' && LOGBOX.length) { const r = await appPost('/v1/log', LOGBOX.slice(0, 300)); if (!r.ok) break; LOGBOX.splice(0, 300); }
   } catch (e) { appState = 'app not reachable'; }
   syncing = false;
+}
+function appPost(path, body) {
+  return fetch('http://127.0.0.1:47913' + path, { method: 'POST', cache: 'no-store', credentials: 'omit',
+    headers: { 'Content-Type': 'text/plain', 'X-Groveguard-Key': cache.appKey, 'X-Groveguard-Browser': BROWSER }, body: JSON.stringify(body) });
+}
+/** use the app's switches, lists and rules (the app's web tab controls the extension once linked) */
+async function pullSettings() {
+  const r = await fetch('http://127.0.0.1:47913/v1/settings', { cache: 'no-store', credentials: 'omit', headers: { 'X-Groveguard-Key': cache.appKey } });
+  if (!r.ok) return r.status;
+  const a = await r.json(), s = await settings();
+  let listsChanged = false;
+  for (const l of LISTS) if (a.lists && a.lists[l.id] !== undefined && !!s.lists[l.id] !== !!a.lists[l.id]) { s.lists[l.id] = !!a.lists[l.id]; listsChanged = true; }
+  s.blocking = !!a.blocking; s.myBlock = a.myBlock || []; s.myAllow = a.myAllow || []; s.paused = a.paused || [];
+  s.fromApp = Date.now();
+  await save(s); await refreshCache();
+  if (listsChanged) {
+    for (const l of LISTS) if (s.lists[l.id] && !(await kv('list:' + l.id))) { try { await downloadList(l); } catch (e) { } }
+    await rebuild();
+  }
+  return 200;
 }
 /** host or a parent of it is in the list */
 function inList(list, host) { return !!host && !!list && list.some(p => host === p || host.endsWith('.' + p)); }
@@ -95,6 +147,16 @@ async function downloadDanger() {
   bloom = b;
 }
 async function downloadList(l) {
+  if (l.adult) {
+    const text = await fetchList(l.url), out = [];
+    for (const line of text.split('\n')) { const d = domainOf(line); if (d) out.push(d); }
+    if (out.length < 100) throw new Error('the list looks empty');
+    await kv('list:' + l.id, { domains: out });
+    const meta = (await kv('meta')) || {};
+    meta[l.id] = { updated: Date.now(), rules: out.length };
+    await kv('meta', meta);
+    return;
+  }
   const r = new Rules().parse(await fetchList(l.url));
   await kv('list:' + l.id, r.toJSON());
   const meta = (await kv('meta')) || {};
@@ -103,13 +165,14 @@ async function downloadList(l) {
 }
 /** Rebuilds the active rules from the switched-on lists (+ your own filters). */
 async function rebuild() {
-  const s = await settings(), r = new Rules(), ad = new Rules();
+  const s = await settings(), r = new Rules(), ad = new Set();
   let anyAdult = false;
   for (const l of LISTS) {
     if (!s.lists[l.id]) continue;
     const j = await kv('list:' + l.id);
     if (!j) continue;
-    if (l.adult) { ad.merge(Rules.fromJSON(j)); anyAdult = true; } else r.merge(Rules.fromJSON(j));
+    if (l.adult) { if (j.domains) { for (const d of j.domains) ad.add(d); anyAdult = true; } else await kv('list:' + l.id, null); } // old format: download again
+    else r.merge(Rules.fromJSON(j));
   }
   if (s.custom) r.parse(s.custom);
   rules = r;
@@ -160,12 +223,11 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
     if (inList(s.myAllow, u.hostname)) { log('page', details.url, '', 'allowed', 'your allow list'); visit(details.url, false, 'your allow list'); return; }
     if (inList(s.myBlock, u.hostname)) {
       log('page', details.url, '', 'blocked', 'your block list'); visit(details.url, true, 'your block list');
-      api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?r=you&h=' + encodeURIComponent(u.hostname) });
+      // the page itself is stopped before it loads (webRequest main_frame)
       return;
     }
-    if (adult && !pausedOn(u.hostname) && shouldBlock(adult, u.hostname, u.pathname + u.search, null, details.url)) {
+    if (adult && !pausedOn(u.hostname) && adultHit(u.hostname)) {
       log('page', details.url, '', 'blocked', '18+ list'); visit(details.url, true, '18+ list');
-      api.tabs.update(details.tabId, { url: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(u.hostname) });
       return;
     }
     if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); visit(details.url, false, ''); return; }
@@ -178,7 +240,16 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
 
 // everything inside pages: ads, trackers, malware (blocking needs the rules in memory)
 api.webRequest.onBeforeRequest.addListener(d => {
-  if (!cache || d.type === 'main_frame') return {};
+  if (d.type === 'main_frame') {
+    // stop your blocked sites and 18+ sites before the page loads (the dangerous-site warning is handled on navigation)
+    let mu; try { mu = new URL(d.url); } catch (e) { return {}; }
+    if (!cache || (mu.protocol !== 'http:' && mu.protocol !== 'https:')) return {};
+    if (inList(cache.myAllow, mu.hostname)) return {};
+    if (inList(cache.myBlock, mu.hostname)) return { redirectUrl: api.runtime.getURL('adult.html') + '?r=you&h=' + encodeURIComponent(mu.hostname) };
+    if (!pausedOn(mu.hostname) && adultHit(mu.hostname)) return { redirectUrl: api.runtime.getURL('adult.html') + '?h=' + encodeURIComponent(mu.hostname) };
+    return {};
+  }
+  if (!cache) return {};
   const page = hostOf(d.documentUrl || d.originUrl || d.initiator || '');
   let u; try { u = new URL(d.url); } catch (e) { return {}; }
   if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'ws:' && u.protocol !== 'wss:') return {};
@@ -191,7 +262,7 @@ api.webRequest.onBeforeRequest.addListener(d => {
   if (inList(cache.myBlock, u.hostname)) return block('your block list');
   if (!rules || !cache.blocking || pausedOn(page)) { log(d.type, d.url, page, 'allowed', pausedOn(page) ? 'site paused' : ''); return {}; }
   if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) return block('filter lists');
-  if (adult && shouldBlock(adult, u.hostname, u.pathname, page, null)) return block('18+ list');
+  if (adultHit(u.hostname)) return block('18+ list');
   log(d.type, d.url, page, 'allowed', '');
   return {};
 }, { urls: ['<all_urls>'] }, ['blocking']);
@@ -217,6 +288,11 @@ api.tabs.onRemoved.addListener(id => counts.delete(id));
 // ---------------------------------------------------------------- messages from the popup, options and warning pages
 api.runtime.onMessage.addListener((m, sender, reply) => {
   (async () => {
+    if (cache && cache.appKey && (m.rule || m.setList || m.pause || m.blocking !== undefined)) {
+      // linked: the app is in charge — save the change there too
+      const body = m.rule ? { rule: m.rule } : m.setList ? { list: m.setList } : m.pause ? { pause: m.pause } : { blocking: m.blocking };
+      appPost('/v1/set', body).catch(() => {});
+    }
     const s = await settings();
     if (m.allow) { s.allowed.push(m.allow); await save(s); }
     if (m.setList) { s.lists[m.setList.id] = m.setList.on; await save(s); if (m.setList.on) { const l = LISTS.find(x => x.id === m.setList.id); if (l && !(await kv('list:' + l.id))) { try { await downloadList(l); } catch (e) { } } } await rebuild(); }
@@ -263,7 +339,8 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
 if (api.alarms) {
   api.alarms.create('update', { periodInMinutes: 60 * 6, delayInMinutes: 2 });
   api.alarms.onAlarm.addListener(a => { if (a.name === 'update') updateAll(false).then(refreshCache).catch(() => {}); });
-  api.alarms.create('sync', { periodInMinutes: 5 });
+  api.alarms.create('sync', { periodInMinutes: 1 });
   api.alarms.onAlarm.addListener(a => { if (a.name === 'sync') syncApp(); });
 }
-refreshCache().then(ensure).catch(() => {});
+refreshCache().then(ensure).then(syncApp).catch(() => {});
+setInterval(() => { if (LOGBOX.length) syncApp(); }, 5000);
