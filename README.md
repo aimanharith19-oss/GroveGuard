@@ -43,6 +43,10 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.11
+- **Grove Browser support**: Grove Browser (with Groveguard built in) links to this app by itself — no pairing code to type. Only the real Grove Browser (Grove signing certificate) can get the code. Its pages, blocked requests and history show up in the web and history tabs as "Grove Browser", and it follows the web tab's settings (lists, 18+, your rules, paused sites).
+- Extension 1.8.1.
+
 ## What's new in 1.10
 - **Cosmetic filters for every site**: the generic `##selector` filters (about 14,000 in EasyList + uBlock filters) are now applied, the uBlock Origin way: only the `.class` / `#id` names a page really uses are looked up, so pages stay fast. Exceptions (`#@#`) are honoured.
 - **Ad-script blocking (scriptlets)**: the common uBlock Origin `+js(...)` filters are supported — `set-constant`, `abort-on-property-read/write`, `abort-current-script`, `no-setTimeout-if`, `no-setInterval-if`, `prevent-fetch`, `prevent-xhr`, `addEventListener-defuser`, `window.open-defuser`, `remove-attr`, `remove-class`, `remove-node-text`, `noeval(-if)`, `json-prune`, timer boosters, `nowebrtc`. They switch off ad scripts, anti-adblock checks and pop-ups inside the page.

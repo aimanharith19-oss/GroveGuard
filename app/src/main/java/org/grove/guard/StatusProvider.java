@@ -87,6 +87,19 @@ public class StatusProvider extends ContentProvider {
      * </pre>
      */
     @Override public android.os.Bundle call(String method, String arg, android.os.Bundle extras) {
+        if ("extLink".equals(method)) {
+            // Grove Browser links its built-in Groveguard extension to this app (no code to type). Only the real
+            // Grove Browser (Grove signing certificate) gets the pairing code.
+            Context c = getContext();
+            if (c == null || !(Trust.groveBrowser(c, android.os.Binder.getCallingUid()) || Trust.trustedUid(c, android.os.Binder.getCallingUid())))
+                throw new SecurityException("Only Grove Browser may link to Groveguard");
+            String code = org.grove.guard.web.ExtSync.code(c);
+            if (code.isEmpty()) code = org.grove.guard.web.ExtSync.newCode(c); else org.grove.guard.web.ExtSync.start(c);
+            android.os.Bundle out = new android.os.Bundle();
+            out.putString("code", code);
+            out.putInt("port", org.grove.guard.web.ExtSync.PORT);
+            return out;
+        }
         enforce();
         final Context c = getContext();
         android.os.Bundle out = new android.os.Bundle();

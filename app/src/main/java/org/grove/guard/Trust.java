@@ -42,6 +42,18 @@ public final class Trust {
         return false;
     }
 
+    /** Grove Browser: fixed package and the Grove signing certificate (known in advance, so nothing to pin). */
+    public static final String BROWSER = "app.grove.browser";
+    private static final String GROVE_CERT = "886275F08984E109B8562310A7DEE467EAC41C6FBDD21266F737FBCD12A3B799";
+
+    /** Is the app behind this uid the real Grove Browser? */
+    public static boolean groveBrowser(Context c, int uid) {
+        String[] pkgs = c.getPackageManager().getPackagesForUid(uid);
+        if (pkgs == null) return false;
+        for (String p : pkgs) if (BROWSER.equals(p) && GROVE_CERT.equals(certSha256(c, p))) return true;
+        return false;
+    }
+
     private static boolean certMatches(Context c, String pkg) {
         String cert = certSha256(c, pkg);
         if (cert == null) return false;

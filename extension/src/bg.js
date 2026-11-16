@@ -51,7 +51,29 @@ function blockUrl(kind, host, why, matched) {
 // ---------------------------------------------------------------- history (every website opened, kept in this browser) + sync to the Groveguard app
 const HIST_MAX = 20000;
 let HIST = null, histDirty = false, OUTBOX = null;
-const BROWSER = navigator.userAgent.includes('Firefox') ? 'Firefox' : navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chromium';
+let BROWSER = navigator.userAgent.includes('Firefox') ? 'Firefox' : navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chromium';
+/** Built into Grove Browser: the browser hands over the Groveguard app's pairing code, so linking needs no typing.
+ *  (Only Grove Browser's copy of this extension has the nativeMessaging permission; elsewhere this does nothing.) */
+function linkViaGroveBrowser() {
+  try {
+    if (!api.runtime.connectNative) return;
+    const port = api.runtime.connectNative('groveguard');
+    port.onMessage.addListener(async m => {
+      if (!m || typeof m.code !== 'string') return;
+      if (m.name) BROWSER = String(m.name).replace(/[^A-Za-z ]/g, '').slice(0, 20) || BROWSER;
+      const k = m.code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!k) return;
+      const s = await settings();
+      if (s.appKey !== k) {
+        const first = !s.appKey;
+        s.appKey = k; await save(s); await refreshCache(); await histLoad();
+        if (first) { OUTBOX = HIST.slice(-5000); await kv('outbox', OUTBOX); }
+      }
+      syncApp();
+    });
+    port.onDisconnect.addListener(() => {});
+  } catch (e) { }
+}
 async function histLoad() { if (!HIST) { HIST = (await kv('history')) || []; OUTBOX = (await kv('outbox')) || []; } }
 function visit(url, blocked, why) {
   let host = ''; try { host = new URL(url).hostname; } catch (e) { return; }
@@ -434,4 +456,5 @@ async function ensureAdult() {
   if (got) await rebuild();
 }
 refreshCache().then(ensure).then(ensureAdult).then(syncApp).catch(() => {});
+setTimeout(linkViaGroveBrowser, 3000);
 setInterval(() => { if (LOGBOX.length) syncApp(); }, 5000);

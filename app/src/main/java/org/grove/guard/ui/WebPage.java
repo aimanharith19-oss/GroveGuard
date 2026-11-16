@@ -35,7 +35,7 @@ public class WebPage {
 
     public void build(LinearLayout col) {
         WebFilter.ensureLoaded(a);
-        col.addView(MainActivity.pageHeader(a, "Web", "Ads, trackers, 18+ and dangerous sites — for Grove Launcher's browser"));
+        col.addView(MainActivity.pageHeader(a, "Web", "Ads, trackers, 18+ and dangerous sites — for Grove Browser, Grove Launcher's browser and the extension"));
 
         // status
         LinearLayout st = Ui.card(a);
@@ -50,12 +50,17 @@ public class WebPage {
         }));
         int adultN = WebFilter.adultSites(a);
         if (adultN != 0) st.addView(Ui.item(a, R.drawable.ic_shield, "18+ blocking", adultN > 0
-                ? String.format(java.util.Locale.getDefault(), "Always on · %,d sites blocked, in Grove Launcher and the linked extension", adultN)
+                ? String.format(java.util.Locale.getDefault(), "Always on · %,d sites blocked, in Grove Browser, Grove Launcher and the linked extension", adultN)
                 : "Switched on, but the list isn't downloaded yet — tap to download", null, new View.OnClickListener() {
             @Override public void onClick(View v) { WebFilter.update(a, true); Ui.toast(a, "Downloading lists…"); redraw(); }
         }));
         String code = org.grove.guard.web.ExtSync.code(a);
         long seen = org.grove.guard.web.ExtSync.lastReceived();
+        boolean groveBrowser = false;
+        try { a.getPackageManager().getPackageInfo(org.grove.guard.Trust.BROWSER, 0); groveBrowser = true; } catch (Exception ignored) { }
+        if (groveBrowser) st.addView(Ui.item(a, R.drawable.ic_globe, "Grove Browser", code.isEmpty()
+                ? "Installed · open it once and it links to Groveguard by itself"
+                : "Linked by itself · follows this tab's settings" + ("Grove Browser".equals(org.grove.guard.web.ExtSync.lastBrowser()) && seen > 0 ? " · last contact " + Events.ago(a, seen) : ""), null, null));
         st.addView(Ui.item(a, R.drawable.ic_link, "Browser extension", code.isEmpty()
                 ? "Not linked · install it in Firefox or Chromium, then link it in the history tab so this tab controls it"
                 : "Linked (code " + code + ") · follows this tab's settings · " + (seen > 0 ? "last contact " + Events.ago(a, seen) : "not heard from yet since Groveguard started"),
@@ -152,7 +157,7 @@ public class WebPage {
             inner.addView(r);
         }
         if (n == 0) {
-            TextView empty = Ui.text(a, log.isEmpty() ? "Nothing yet. Pages and requests from Grove Launcher's browser — and from Firefox/Chromium once the extension is linked (history tab) — show up here as you browse."
+            TextView empty = Ui.text(a, log.isEmpty() ? "Nothing yet. Pages and requests from Grove Browser (linked by itself), Grove Launcher's browser, and Firefox/Chromium once the extension is linked (history tab) show up here as you browse."
                     : "Nothing matches this filter.", 14, p.sub);
             empty.setPadding(Ui.dp(a, 4), Ui.dp(a, 12), Ui.dp(a, 4), Ui.dp(a, 12));
             inner.addView(empty);

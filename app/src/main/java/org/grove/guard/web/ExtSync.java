@@ -39,6 +39,10 @@ public final class ExtSync {
     private static final int MAX_BODY = 2 * 1024 * 1024;
     private static volatile ServerSocket server;
     private static volatile long lastReceived;
+    private static volatile String lastBrowser = "";
+
+    /** Name of the browser that last sent something, e.g. "Grove Browser" or "Firefox". */
+    public static String lastBrowser() { return lastBrowser; }
 
     public static String code(Context c) { return Prefs.str(c, KEY, ""); }
     public static boolean running() { return server != null; }
@@ -122,6 +126,7 @@ public final class ExtSync {
             reply(out, 403, "wrong code"); return;
         }
         lastReceived = System.currentTimeMillis();
+        if (!browser.isEmpty()) lastBrowser = browser.length() > 20 ? browser.substring(0, 20) : browser;
         if (get) { reply(out, 200, settings(c).toString()); return; }
         if (len <= 0 || len > MAX_BODY) { reply(out, 413, "too big"); return; }
         byte[] body = new byte[len];
