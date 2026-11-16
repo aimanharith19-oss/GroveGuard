@@ -71,8 +71,8 @@ async function applyLists() {
     for (const [h, l] of r.paths3p) for (const p of l) pat('||' + h + p, { domainType: 'thirdParty' }, 'block', P_FILTER);
     for (const l of r.gen.values()) for (const p of l) pat(g(p), {}, 'block', P_FILTER);
     for (const l of r.gen3p.values()) for (const p of l) pat(g(p), { domainType: 'thirdParty' }, 'block', P_FILTER);
-    await kv('hide', [...r.hide]);
-    hide = r.hide;
+    await kv('cosmetic', r.cosmeticJSON());
+    cos = null;
   }
   const old = (await DNR.getDynamicRules()).map(x => x.id).filter(x => x >= ID_LISTS);
   for (let i = 0; i < old.length; i += 5000) await DNR.updateDynamicRules({ removeRuleIds: old.slice(i, i + 5000) });
@@ -84,11 +84,31 @@ async function applyLists() {
 let applying = null;
 async function rebuild() {
   if (applying) { await applying.catch(() => {}); }
-  applying = (async () => { await loadRules(); await applyLists(); await applyUser(); rules = null; adult = null; })();
+  applying = (async () => { await loadRules(); await applyLists(); await applyUser(); await registerScriptlets(); rules = null; adult = null; })();
   try { await applying; } finally { applying = null; }
 }
+/** Chromium: the scriptlets are registered as a user script in the page's own world, so they run before the page's scripts.
+ *  Needs "Allow user scripts" switched on for Groveguard on the extensions page; without it they still run, but can be late. */
+function userScriptsApi() { try { return chrome.userScripts && chrome.userScripts.register ? chrome.userScripts : null; } catch (e) { return null; } }
+async function registerScriptlets() {
+  const us = userScriptsApi();
+  await kv('user-scripts', !!us);
+  if (!us) return false;
+  try { await us.unregister({ ids: ['gg-scriptlets'] }); } catch (e) { }
+  if (!cache) await refreshCache();
+  if (!cache.blocking) return true;
+  const r = await getCos(), matches = scriptletMatches(r);
+  if (!matches.length) return true;
+  const o = { id: 'gg-scriptlets', matches, js: [{ code: scriptletCode(r) }], runAt: 'document_start', world: 'MAIN', allFrames: true };
+  const ex = scriptletExcludes();
+  if (ex.length) o.excludeMatches = ex;
+  try { await us.register([o]); } catch (e) { console.warn('Groveguard: scriptlets', e); return false; }
+  return true;
+}
+async function userChanged() { await applyUser(); await registerScriptlets(); }
 async function ensure() {
   if (!bloom) { const buf = await kv('danger'); if (buf) bloom = new Bloom(buf); }
+  if ((await kv('fmt')) !== 2) { await kv('fmt', 2); if (await kv('meta')) { await updateAll(true); return; } } // older downloads have no generic cosmetic filters or scriptlets
   if (!(await kv('meta')) || !(await kv('danger-updated'))) await updateAll(false);
 }
 /** the locked-on 18+ lists: download any that aren't here yet */
@@ -146,7 +166,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async d => {
     chrome.tabs.update(d.tabId, { url: chrome.runtime.getURL('warning.html') + '?u=' + encodeURIComponent(d.url) + '&l=' + encodeURIComponent(hit) });
   } catch (e) { }
 });
-let hide = null;
+// element hiding and scriptlets: a light copy of the cosmetic rules, loaded when the service worker wakes
+let cos = null;
+async function getCos() { if (!cos) { const j = await kv('cosmetic'); cos = j ? Rules.fromJSON(j) : new Rules(); } return cos; }
+function insertCss(tabId, frameId, css) { chrome.scripting.insertCSS({ target: { tabId, frameIds: [frameId] }, css, origin: 'USER' }).catch(() => {}); }
 chrome.webNavigation.onCommitted.addListener(async d => {
   try {
     if (!cache) await refreshCache();
@@ -162,12 +185,6 @@ chrome.webNavigation.onCommitted.addListener(async d => {
         else { const h = hostOf(d.url), w = inList(cache.myAllow, h) ? 'your allow list' : ''; log('page', d.url, '', 'allowed', w); visit(d.url, false, w); }
       }
     }
-    // element hiding (site-specific cosmetic filters)
-    if (!cache.blocking || !/^https?:/.test(d.url)) return;
-    const host = hostOf(d.url);
-    if (!host || pausedOn(host)) return;
-    if (!hide) hide = new Map((await kv('hide')) || []);
-    const css = cssFor({ hide }, host);
-    if (css) chrome.scripting.insertCSS({ target: { tabId: d.tabId, frameIds: [d.frameId] }, css, origin: 'USER' }).catch(() => {});
+    scriptlets(d.tabId, d.frameId, d.url);
   } catch (e) { }
 });

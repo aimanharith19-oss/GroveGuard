@@ -298,9 +298,11 @@ public final class WebFilter {
         App.IO.execute(new Runnable() {
             @Override public void run() {
                 rebuild(c);
-                boolean missing = false;
+                boolean missing = Prefs.sp(c).getInt("web_fmt", 1) < 2; // older downloads have no generic cosmetic filters or scriptlets
+                if (missing) Prefs.sp(c).edit().putInt("web_fmt", 2).apply();
+                final boolean all = missing;
                 for (ListInfo l : LISTS) if (listOn(c, l) && !file(c, l).exists()) missing = true;
-                if (missing || System.currentTimeMillis() - lastUpdate(c) > 24 * 3600 * 1000L) update(c, false);
+                if (missing || System.currentTimeMillis() - lastUpdate(c) > 24 * 3600 * 1000L) update(c, all);
             }
         });
     }
@@ -390,6 +392,72 @@ public final class WebFilter {
         if (r == null || pageHost == null || !enabled(c) || inList(Prefs.set(c, PAUSED), pageHost)) return null;
         return r.cssFor(pageHost);
     }
+
+    // ---------------------------------------------------------------- generic element hiding + scriptlets (for Grove Launcher's browser)
+
+    private static String scriptletLib, surveyor;
+    private static AdRules surveyorFor;
+
+    /** JavaScript that runs this page's scriptlets (switches off ad scripts), or null. Run it as early as possible in the page. */
+    public static String scriptlets(Context c, String pageHost) {
+        AdRules r = rules;
+        if (r == null || pageHost == null || !enabled(c) || inList(Prefs.set(c, PAUSED), pageHost) || inList(Prefs.set(c, MY_ALLOW), pageHost)) return null;
+        String list = r.scriptletsFor(pageHost);
+        if (list == null) return null;
+        synchronized (WebFilter.class) {
+            if (scriptletLib == null) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getAssets().open("scriptlets.js"), "UTF-8"))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) { if (!line.startsWith("if (typeof module")) sb.append(line).append('\n'); }
+                    scriptletLib = sb.toString();
+                } catch (Exception e) { return null; }
+            }
+        }
+        return "(function(){" + scriptletLib + "\ngroveScriptlets(" + list + ");})();";
+    }
+
+    /** Selectors that must not be hidden on this page, as a JSON array (for the surveyor's window.__ggx). */
+    public static String cosmeticExceptions(Context c, String pageHost) {
+        AdRules r = rules;
+        StringBuilder sb = new StringBuilder("[");
+        if (r != null && pageHost != null) for (String s : r.exceptionsFor(pageHost)) { if (sb.length() > 1) sb.append(','); sb.append(AdRules.jsonString(s)); }
+        return sb.append(']').toString();
+    }
+
+    /**
+     * The "surveyor": JavaScript that hides elements matching the generic ".class" / "#id" cosmetic filters, looking only at
+     * the names the page really uses (like uBlock Origin). Same for every page, so the caller can keep it; {@link #surveyorVersion} changes when the lists do.
+     */
+    public static String surveyor(Context c) {
+        AdRules r = rules;
+        if (r == null || !enabled(c)) return null;
+        synchronized (WebFilter.class) {
+            if (surveyor != null && surveyorFor == r) return surveyor;
+            StringBuilder sb = new StringBuilder(r.genCls.size() * 16 + r.genId.size() * 16 + 2000);
+            sb.append("(function(){if(window.__ggs)return;window.__ggs=1;var C=new Set(\"");
+            boolean first = true;
+            for (String n : r.genCls) { if (!first) sb.append(' '); sb.append(n); first = false; }
+            sb.append("\".split(' ')),I=new Set(\"");
+            first = true;
+            for (String n : r.genId) { if (!first) sb.append(' '); sb.append(n); first = false; }
+            sb.append("\".split(' ')),X=new Set(window.__ggx||[]),st=document.createElement('style'),seen=new Set(),q=[],t=0;"
+                    + "(document.head||document.documentElement).appendChild(st);"
+                    + "function flush(){t=0;if(!q.length)return;var css='';for(var i=0;i<q.length;i+=20)css+=q.slice(i,i+20).join(',')+'{display:none!important}';q=[];st.appendChild(document.createTextNode(css));}"
+                    + "function add(s){if(seen.has(s))return;seen.add(s);if(X.has(s))return;q.push(s);if(!t)t=setTimeout(flush,100);}"
+                    + "function note(el){if(el.nodeType!==1)return;var id=el.id;if(typeof id==='string'&&id&&I.has(id))add('#'+id);var cl=el.classList;if(cl)for(var i=0;i<cl.length;i++)if(C.has(cl[i]))add('.'+cl[i]);}"
+                    + "function scan(r){if(!r||r.nodeType!==1)return;note(r);var a=r.querySelectorAll?r.querySelectorAll('[id],[class]'):[];for(var i=0;i<a.length&&i<20000;i++)note(a[i]);}"
+                    + "scan(document.documentElement);"
+                    + "new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var m=ms[i];if(m.type==='attributes')note(m.target);else for(var k=0;k<m.addedNodes.length;k++)scan(m.addedNodes[k]);}})"
+                    + ".observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','id']});})();");
+            surveyor = sb.toString();
+            surveyorFor = r;
+            return surveyor;
+        }
+    }
+
+    /** Changes whenever the surveyor script would. */
+    public static int surveyorVersion() { AdRules r = rules; return r == null ? 0 : System.identityHashCode(r); }
 
     public static boolean paused(Context c, String host) { return inList(Prefs.set(c, PAUSED), host); }
 

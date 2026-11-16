@@ -7,6 +7,7 @@ let show = function (r) {
   if (!r) return;
   $('st').textContent = r.rules.toLocaleString() + ' filters active · last update ' + (r.lastUpdate ? new Date(r.lastUpdate).toLocaleString() : 'never')
     + (r.errors && r.errors.length ? ' · failed: ' + r.errors.join('; ') : '');
+  if ($('us')) $('us').hidden = r.userScripts !== false; // Chromium only: scriptlets need "Allow user scripts"
   const box = $('lists'); box.textContent = '';
   let group = '';
   for (const l of r.lists) {

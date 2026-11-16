@@ -43,6 +43,12 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.10
+- **Cosmetic filters for every site**: the generic `##selector` filters (about 14,000 in EasyList + uBlock filters) are now applied, the uBlock Origin way: only the `.class` / `#id` names a page really uses are looked up, so pages stay fast. Exceptions (`#@#`) are honoured.
+- **Ad-script blocking (scriptlets)**: the common uBlock Origin `+js(...)` filters are supported — `set-constant`, `abort-on-property-read/write`, `abort-current-script`, `no-setTimeout-if`, `no-setInterval-if`, `prevent-fetch`, `prevent-xhr`, `addEventListener-defuser`, `window.open-defuser`, `remove-attr`, `remove-class`, `remove-node-text`, `noeval(-if)`, `json-prune`, timer boosters, `nowebrtc`. They switch off ad scripts, anti-adblock checks and pop-ups inside the page.
+- Works in the Firefox extension (and Grove Browser, where it's built in), the Chromium extension (switch on **Allow user scripts** for Groveguard on the extensions page so scriptlets always run before the page's scripts) and Grove Launcher's browser (1.49.3+).
+- Only Groveguard's own pages can change the extension's settings.
+
 ## What's new in 1.9
 - **18+ lists locked on**: no switch, on by default, and not lifted by pausing a site or by your allow list (app and extension).
 - **Chromium extension is now Manifest V3** (Vivaldi, Chrome, Edge, Brave removed Manifest V2, which is why the old one kept being switched off or removed). Blocking uses the browser's own declarativeNetRequest rules: 18+ sites, your block/allow rules, paused sites and the filter lists. Install: unzip `groveguard-chromium.zip`, open `vivaldi://extensions` (or `chrome://extensions`), turn on Developer mode, **Load unpacked**, pick the folder — and keep that folder where it is.

@@ -31,6 +31,27 @@ public final class AdRules {
     /** Generic URL patterns ("/fbevents.js"), indexed by their longest word: block, third-party-only, exceptions. */
     public final Map<String, List<String>> gen = new HashMap<>(), gen3p = new HashMap<>(), genAllow = new HashMap<>();
 
+    /** Cosmetic filters for every site: simple ".class" / "#id" by name, the rest ("complex") as selectors; exceptions (#@#). */
+    public final Set<String> genCls = new HashSet<>(), genId = new HashSet<>(), genCx = new java.util.LinkedHashSet<>(), exGen = new HashSet<>();
+    public final Map<String, List<String>> exSite = new HashMap<>();
+    /** host -> scriptlets (+js filters) as JSON arrays ["name","arg",…]; host -> scriptlet names switched off there. */
+    public final Map<String, List<String>> js = new HashMap<>(), jsEx = new HashMap<>();
+
+    private static final Map<String, String> ALIAS = new HashMap<>();
+    private static final Set<String> SCRIPTLETS = new HashSet<>();
+    static {
+        String[] al = {"set-constant", "set", "abort-on-property-read", "aopr", "abort-on-property-write", "aopw", "abort-current-script", "acs",
+                "abort-current-inline-script", "acs", "acis", "acs", "no-setTimeout-if", "nostif", "prevent-setTimeout", "nostif", "no-setInterval-if", "nosiif",
+                "prevent-setInterval", "nosiif", "prevent-fetch", "no-fetch-if", "prevent-xhr", "no-xhr-if", "addEventListener-defuser", "aeld",
+                "prevent-addEventListener", "aeld", "window.open-defuser", "nowoif", "no-window-open-if", "nowoif", "prevent-window-open", "nowoif",
+                "remove-attr", "ra", "remove-class", "rc", "remove-node-text", "rmnt", "prevent-eval-if", "noeval-if", "adjust-setTimeout", "nano-stb",
+                "nano-setTimeout-booster", "nano-stb", "adjust-setInterval", "nano-sib", "nano-setInterval-booster", "nano-sib", "silent-noeval", "noeval"};
+        for (int i = 0; i < al.length; i += 2) ALIAS.put(al[i], al[i + 1]);
+        for (String n : new String[]{"set", "aopr", "aopw", "acs", "nostif", "nosiif", "no-fetch-if", "no-xhr-if", "aeld", "nowoif", "ra", "rc", "rmnt",
+                "noeval-if", "noeval", "nano-stb", "nano-sib", "json-prune", "nowebrtc"}) SCRIPTLETS.add(n);
+    }
+    private static String alias(String n) { String a = ALIAS.get(n); return a == null ? n : a; }
+
     private static final Set<String> OK_OPTS = new HashSet<>();
     static {
         for (String o : new String[]{"third-party", "3p", "script", "image", "xmlhttprequest", "xhr", "subdocument",
@@ -38,13 +59,16 @@ public final class AdRules {
             OK_OPTS.add(o);
     }
 
-    public int size() { return block.size() + block3p.size() + count(paths) + count(paths3p) + count(gen) + count(gen3p) + count(hide); }
+    public int size() { return block.size() + block3p.size() + count(paths) + count(paths3p) + count(gen) + count(gen3p) + count(hide)
+            + genCls.size() + genId.size() + genCx.size() + count(js); }
 
     /** Adds everything from another rule set. */
     public void merge(AdRules o) {
         block.addAll(o.block); block3p.addAll(o.block3p); allow.addAll(o.allow);
         mergeMap(hide, o.hide); mergeMap(paths, o.paths); mergeMap(paths3p, o.paths3p);
         mergeMap(gen, o.gen); mergeMap(gen3p, o.gen3p); mergeMap(genAllow, o.genAllow);
+        genCls.addAll(o.genCls); genId.addAll(o.genId); genCx.addAll(o.genCx); exGen.addAll(o.exGen);
+        mergeMap(exSite, o.exSite); mergeMap(js, o.js); mergeMap(jsEx, o.jsEx);
     }
 
     private static void mergeMap(Map<String, List<String>> to, Map<String, List<String>> from) {
@@ -122,7 +146,7 @@ public final class AdRules {
     }
 
     public void parseLine(String l) {
-        if (l.isEmpty() || l.startsWith("!") || l.startsWith("[") || l.startsWith("#")) return;
+        if (l.isEmpty() || l.startsWith("!") || l.startsWith("[") || (l.startsWith("#") && !l.startsWith("##") && !l.startsWith("#@#"))) return;
         // hosts-file format (Peter Lowe's list)
         if (l.startsWith("127.0.0.1 ") || l.startsWith("0.0.0.0 ")) {
             String h = l.substring(l.indexOf(' ') + 1).trim();
@@ -130,6 +154,9 @@ public final class AdRules {
             return;
         }
         int cos = l.indexOf("##");
+        int exAt = l.indexOf("#@#");
+        if (exAt >= 0 && l.indexOf("#?#") < 0 && l.indexOf("#$#") < 0) { cosmeticException(l.substring(0, exAt), l.substring(exAt + 3)); return; }
+        if (cos == 0 && l.indexOf("#?#") < 0 && l.indexOf("#$#") < 0) { genericCosmetic(l.substring(2)); return; }
         if (cos > 0 && l.indexOf("#@#") < 0 && l.indexOf("#?#") < 0 && l.indexOf("#$#") < 0) {
             cosmetic(l.substring(0, cos), l.substring(cos + 2));
             return;
@@ -171,7 +198,96 @@ public final class AdRules {
         else block.add(host);
     }
 
+    private static boolean badSelector(String selector) {
+        return selector.startsWith("+js(") || selector.contains(":has-text(") || selector.contains(":-abp-")
+                || selector.contains(":upward(") || selector.contains(":remove(") || selector.contains(":style(")
+                || selector.contains(":xpath(") || selector.contains(":matches-") || selector.contains(":watch-attr(")
+                || selector.contains(":min-text-length(") || selector.contains(":others(") || selector.startsWith("^")
+                || selector.contains(":matches-path(") || selector.contains(":remove-attr(") || selector.contains(":remove-class(")
+                || selector.contains("{") || selector.isEmpty();
+    }
+
+    private static boolean isName(String s) {
+        if (s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); if (!(Character.isLetterOrDigit(c) && c < 128) && c != '_' && c != '-') return false; }
+        return true;
+    }
+
+    /** ##selector: hidden on every site. */
+    private void genericCosmetic(String sel) {
+        if (sel.length() > 300 || badSelector(sel) || sel.contains(":has(")) return;
+        char c = sel.charAt(0);
+        if ((c == '.' || c == '#') && isName(sel.substring(1))) (c == '.' ? genCls : genId).add(sel.substring(1));
+        else if (genCx.size() < 3000) genCx.add(sel);
+    }
+
+    /** #@#selector (never hidden anywhere) or site#@#selector / site#@#+js(name). */
+    private void cosmeticException(String domains, String sel) {
+        if (sel.isEmpty()) return;
+        if (domains.isEmpty()) { if (!sel.startsWith("+js(")) exGen.add(sel); return; }
+        for (String d : domains.split(",")) {
+            d = d.trim().toLowerCase();
+            if (d.isEmpty() || d.startsWith("~") || !isDomain(d)) continue;
+            if (sel.startsWith("+js(")) {
+                String body = sel.endsWith(")") ? sel.substring(4, sel.length() - 1) : sel.substring(4);
+                put(jsEx, d, alias(body.split(",")[0].trim()));
+            } else put(exSite, d, sel);
+        }
+    }
+
+    /** "a, b\\, c, /re,x/" → arguments. */
+    static List<String> splitArgs(String body) {
+        List<String> out = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean re = false;
+        for (int i = 0; i < body.length(); i++) {
+            char ch = body.charAt(i);
+            if (ch == '\\' && i + 1 < body.length()) {
+                if (body.charAt(i + 1) == ',') cur.append(','); else cur.append(ch).append(body.charAt(i + 1));
+                i++; continue;
+            }
+            if (ch == '/') { if (re) re = false; else if (cur.toString().trim().isEmpty()) re = true; }
+            if (ch == ',' && !re) { out.add(cur.toString().trim()); cur.setLength(0); continue; }
+            cur.append(ch);
+        }
+        out.add(cur.toString().trim());
+        for (int i = 0; i < out.size(); i++) {
+            String a = out.get(i);
+            if (a.length() > 1 && ((a.charAt(0) == '"' && a.endsWith("\"")) || (a.charAt(0) == '\'' && a.endsWith("'")))) out.set(i, a.substring(1, a.length() - 1));
+        }
+        return out;
+    }
+
+    static String jsonString(String s) {
+        StringBuilder b = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '"' || c == '\\') b.append('\\').append(c);
+            else if (c == '<') b.append("\\u003c"); // never lets a page-injected script end early
+            else if (c < 0x20 || c == 0x2028 || c == 0x2029) b.append(String.format("\\u%04x", (int) c));
+            else b.append(c);
+        }
+        return b.append('"').toString();
+    }
+
+    /** site##+js(name, arg, …): a scriptlet that switches off an ad script on that site. */
+    private void scriptlet(String domains, String body) {
+        List<String> args = splitArgs(body);
+        String name = alias(args.get(0));
+        if (!SCRIPTLETS.contains(name)) return;
+        StringBuilder json = new StringBuilder("[").append(jsonString(name));
+        for (int i = 1; i < args.size(); i++) json.append(',').append(jsonString(args.get(i)));
+        json.append(']');
+        for (String d : domains.split(",")) {
+            d = d.trim().toLowerCase();
+            if (d.isEmpty() || d.startsWith("~") || d.contains("*") || d.contains("/") || !isDomain(d)) continue;
+            List<String> l = js.get(d);
+            if (l == null || l.size() < 60) put(js, d, json.toString());
+        }
+    }
+
     private void cosmetic(String domains, String selector) {
+        if (selector.startsWith("+js(") && selector.endsWith(")")) { scriptlet(domains, selector.substring(4, selector.length() - 1)); return; }
         // "selector:style(css)" → a whole CSS rule (e.g. reddit.com##body:style(overflow: auto !important;))
         int st = selector.indexOf(":style(");
         if (st > 0 && selector.endsWith(")") && selector.indexOf(":style(", st + 1) < 0) {
@@ -186,12 +302,7 @@ public final class AdRules {
             }
             return;
         }
-        if (selector.startsWith("+js(") || selector.contains(":has-text(") || selector.contains(":-abp-")
-                || selector.contains(":upward(") || selector.contains(":remove(") || selector.contains(":style(")
-                || selector.contains(":xpath(") || selector.contains(":matches-") || selector.contains(":watch-attr(")
-                || selector.contains(":min-text-length(") || selector.contains(":others(") || selector.startsWith("^")
-                || selector.contains(":matches-path(") || selector.contains(":remove-attr(") || selector.contains(":remove-class(")
-                || selector.contains("{") || selector.isEmpty()) return;
+        if (badSelector(selector)) return;
         for (String d : domains.split(",")) {
             d = d.trim().toLowerCase();
             if (d.isEmpty() || d.startsWith("~") || d.contains("*") || d.contains("/") || !isDomain(d)) continue;
@@ -288,25 +399,66 @@ public final class AdRules {
         return hit;
     }
 
-    /** CSS that hides the known ad/annoyance elements on this site, or null. */
-    public String cssFor(String pageHost) {
-        if (pageHost == null) return null;
-        StringBuilder sb = new StringBuilder(), raw = new StringBuilder();
-        String cur = pageHost.toLowerCase();
+    /** Every entry for host and its parent domains. */
+    private static List<String> forHost(Map<String, List<String>> m, String host) {
+        List<String> out = new ArrayList<>();
+        String cur = host.toLowerCase();
         while (true) {
-            List<String> l = hide.get(cur);
-            if (l != null) for (String s : l) {
-                if (s.startsWith("@")) { raw.append(s.substring(1)).append('\n'); continue; }
-                if (sb.length() > 0) sb.append(",\n");
-                sb.append(s);
-            }
+            List<String> l = m.get(cur);
+            if (l != null) out.addAll(l);
             int dot = cur.indexOf('.');
             if (dot < 0) break;
             cur = cur.substring(dot + 1);
         }
-        if (sb.length() == 0 && raw.length() == 0) return null;
-        if (sb.length() > 0) sb.append("{display:none!important}\n");
+        return out;
+    }
+
+    private static void hideCss(StringBuilder sb, List<String> sels) {
+        // in groups, so one selector the browser doesn't understand only loses its own group
+        for (int i = 0; i < sels.size(); i += 20) {
+            for (int k = i; k < Math.min(i + 20, sels.size()); k++) { if (k > i) sb.append(",\n"); sb.append(sels.get(k)); }
+            sb.append("{display:none!important}\n");
+        }
+    }
+
+    /** CSS for a page: its own cosmetic filters + the complex generic ones, minus exceptions. Null if none. */
+    public String cssFor(String pageHost) {
+        if (pageHost == null) return null;
+        Set<String> ex = new HashSet<>(forHost(exSite, pageHost));
+        List<String> sels = new ArrayList<>();
+        StringBuilder raw = new StringBuilder();
+        for (String s : forHost(hide, pageHost)) {
+            if (s.startsWith("@")) raw.append(s.substring(1)).append('\n');
+            else if (!ex.contains(s) && !exGen.contains(s)) sels.add(s);
+        }
+        for (String s : genCx) if (!ex.contains(s) && !exGen.contains(s)) sels.add(s);
+        if (sels.isEmpty() && raw.length() == 0) return null;
+        StringBuilder sb = new StringBuilder();
+        hideCss(sb, sels);
         return sb.append(raw).toString();
+    }
+
+    /** Selectors that must not be hidden on this page (its #@# exceptions and the global ones that are simple names). */
+    public List<String> exceptionsFor(String pageHost) {
+        List<String> out = forHost(exSite, pageHost);
+        for (String s : exGen) if (s.length() > 1 && (s.charAt(0) == '.' || s.charAt(0) == '#') && isName(s.substring(1))) out.add(s);
+        return out;
+    }
+
+    /** This page's scriptlets as a JSON array of arrays ("[[\"set\",\"a\",\"false\"],…]"), or null. */
+    public String scriptletsFor(String pageHost) {
+        if (pageHost == null) return null;
+        Set<String> off = new HashSet<>(forHost(jsEx, pageHost));
+        Set<String> seen = new java.util.LinkedHashSet<>();
+        for (String j : forHost(js, pageHost)) {
+            int q = j.indexOf('"', 2);
+            String name = q > 2 ? j.substring(2, q) : "";
+            if (!off.contains(name)) seen.add(j);
+        }
+        if (seen.isEmpty()) return null;
+        StringBuilder sb = new StringBuilder("[");
+        for (String j : seen) { if (sb.length() > 1) sb.append(','); sb.append(j); }
+        return sb.append(']').toString();
     }
 
     /** Compact form for storing / bundling: one rule per line. */
@@ -316,6 +468,16 @@ public final class AdRules {
         for (String d : allow) out.append("a ").append(d).append('\n');
         for (Map.Entry<String, List<String>> e : hide.entrySet())
             for (String s : e.getValue()) out.append("c ").append(e.getKey()).append(' ').append(s).append('\n');
+        for (String v : genCls) out.append("x ").append(v).append('\n');
+        for (String v : genId) out.append("y ").append(v).append('\n');
+        for (String v : genCx) out.append("z ").append(v).append('\n');
+        for (String v : exGen) out.append("e ").append(v).append('\n');
+        for (Map.Entry<String, List<String>> e : exSite.entrySet())
+            for (String s : e.getValue()) out.append("f ").append(e.getKey()).append(' ').append(s).append('\n');
+        for (Map.Entry<String, List<String>> e : js.entrySet())
+            for (String s : e.getValue()) out.append("j ").append(e.getKey()).append(' ').append(s).append('\n');
+        for (Map.Entry<String, List<String>> e : jsEx.entrySet())
+            for (String s : e.getValue()) out.append("k ").append(e.getKey()).append(' ').append(s).append('\n');
         for (Map.Entry<String, List<String>> e : paths.entrySet())
             for (String s : e.getValue()) out.append("p ").append(e.getKey()).append(' ').append(s).append('\n');
         for (Map.Entry<String, List<String>> e : paths3p.entrySet())
@@ -337,6 +499,16 @@ public final class AdRules {
                 case 'b': block.add(v); break;
                 case 't': block3p.add(v); break;
                 case 'a': allow.add(v); break;
+                case 'x': genCls.add(v); break;
+                case 'y': genId.add(v); break;
+                case 'z': genCx.add(v); break;
+                case 'e': exGen.add(v); break;
+                case 'f': case 'j': case 'k': {
+                    int sp = v.indexOf(' ');
+                    char k = l.charAt(0);
+                    if (sp > 0) put(k == 'f' ? exSite : k == 'j' ? js : jsEx, v.substring(0, sp), v.substring(sp + 1));
+                    break;
+                }
                 case 'p': case 'q': case 'g': case 'h': case 'i': {
                     int sp = v.indexOf(' ');
                     char k = l.charAt(0);

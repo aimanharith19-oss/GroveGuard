@@ -32,14 +32,22 @@ const BAD_COS = [':has-text(', ':-abp-', ':upward(', ':remove(', ':style(', ':xp
 function isDomain(h) { return h.length >= 3 && h.indexOf('.') >= 0 && /^[A-Za-z0-9._-]+$/.test(h); }
 
 class Rules {
-  constructor() { this.block = new Set(); this.block3p = new Set(); this.allow = new Set(); this.hide = new Map(); this.paths = new Map(); this.paths3p = new Map(); this.gen = new Map(); this.gen3p = new Map(); this.genAllow = new Map(); }
+  constructor() {
+    // cosmetic filters for every site: simple ".class" / "#id" selectors by their name (looked up as the page shows them),
+    // the rest ("complex") always applied; exceptions (#@#); and scriptlets (+js) that defuse ad scripts
+    this.genCls = new Map(); this.genId = new Map(); this.genCx = new Set(); this.exGen = new Set(); this.exSite = new Map();
+    this.js = new Map(); this.jsEx = new Map();
+    this.block = new Set(); this.block3p = new Set(); this.allow = new Set(); this.hide = new Map(); this.paths = new Map(); this.paths3p = new Map(); this.gen = new Map(); this.gen3p = new Map(); this.genAllow = new Map(); }
   static put(m, k, v) { let l = m.get(k); if (!l) m.set(k, l = []); l.push(v); }
-  size() { let n = this.block.size + this.block3p.size + this.allow.size; for (const l of this.paths.values()) n += l.length; for (const l of this.paths3p.values()) n += l.length; for (const l of this.hide.values()) n += l.length; for (const m of [this.gen, this.gen3p, this.genAllow]) for (const l of m.values()) n += l.length; return n; }
+  size() { let n = this.block.size + this.block3p.size + this.allow.size + this.genCls.size + this.genId.size + this.genCx.size; for (const l of this.js.values()) n += l.length; for (const l of this.paths.values()) n += l.length; for (const l of this.paths3p.values()) n += l.length; for (const l of this.hide.values()) n += l.length; for (const m of [this.gen, this.gen3p, this.genAllow]) for (const l of m.values()) n += l.length; return n; }
   parse(text) { for (const raw of text.split('\n')) this.line(raw.trim()); return this; }
   line(l) {
-    if (!l || l[0] === '!' || l[0] === '[' || (l[0] === '#' && !l.startsWith('##'))) return;
+    if (!l || l[0] === '!' || l[0] === '[' || (l[0] === '#' && !l.startsWith('##') && !l.startsWith('#@#'))) return;
     if (l.startsWith('127.0.0.1 ') || l.startsWith('0.0.0.0 ')) { const h = l.slice(l.indexOf(' ') + 1).trim(); if (isDomain(h)) this.block.add(h.toLowerCase()); return; }
     const cos = l.indexOf('##');
+    const exAt = l.indexOf('#@#');
+    if (exAt >= 0 && l.indexOf('#?#') < 0 && l.indexOf('#$#') < 0) { this.cosmeticException(l.slice(0, exAt), l.slice(exAt + 3)); return; }
+    if (cos === 0 && l.indexOf('#?#') < 0 && l.indexOf('#$#') < 0) { this.genericCosmetic(l.slice(2)); return; }
     if (cos > 0 && l.indexOf('#@#') < 0 && l.indexOf('#?#') < 0 && l.indexOf('#$#') < 0) { this.cosmetic(l.slice(0, cos), l.slice(cos + 2)); return; }
     if (cos >= 0 || l.includes('#@#') || l.includes('#?#') || l.includes('#$#') || l.includes('#%#')) return;
     let ex = false;
@@ -81,7 +89,38 @@ class Rules {
     const key = words.reduce((a, b) => b.length > a.length ? b : a);
     Rules.put(ex ? this.genAllow : (tp ? this.gen3p : this.gen), key, (anchored ? '|' : '') + pat.toLowerCase());
   }
+  /** ##selector: hidden on every site */
+  genericCosmetic(sel) {
+    if (!sel || sel.startsWith('+js(') || sel.startsWith('^') || sel.length > 300 || BAD_COS.some(b => sel.includes(b)) || sel.includes(':has(')) return;
+    const m = /^([.#])([\w-]+)$/.exec(sel);
+    if (m) (m[1] === '.' ? this.genCls : this.genId).set(m[2], 1);
+    else if (this.genCx.size < 3000) this.genCx.add(sel);
+  }
+  /** #@#selector (never hide this anywhere) or site#@#selector / site#@#+js(...) */
+  cosmeticException(domains, sel) {
+    if (!sel) return;
+    if (!domains) { if (!sel.startsWith('+js(')) this.exGen.add(sel); return; }
+    for (let d of domains.split(',')) {
+      d = d.trim().toLowerCase();
+      if (!d || d.startsWith('~') || !isDomain(d)) continue;
+      if (sel.startsWith('+js(')) Rules.put(this.jsEx, d, sel.slice(4, -1).split(',')[0].trim());
+      else Rules.put(this.exSite, d, sel);
+    }
+  }
+  /** site##+js(name, arg, …): a scriptlet that stops an ad script on that site */
+  scriptlet(domains, body) {
+    const args = splitArgs(body);
+    const name = SCRIPTLET_ALIAS[args[0]] || args[0];
+    if (!SCRIPTLETS.has(name)) return;
+    for (let d of domains.split(',')) {
+      d = d.trim().toLowerCase();
+      if (!d || d.startsWith('~') || /[*/]/.test(d) || !isDomain(d)) continue;
+      const l = this.js.get(d);
+      if (!l || l.length < 60) Rules.put(this.js, d, [name].concat(args.slice(1)));
+    }
+  }
   cosmetic(domains, sel) {
+    if (sel.startsWith('+js(') && sel.endsWith(')')) { this.scriptlet(domains, sel.slice(4, -1)); return; }
     const st = sel.indexOf(':style(');
     if (st > 0 && sel.endsWith(')') && sel.indexOf(':style(', st + 1) < 0) {
       const s = sel.slice(0, st), css = sel.slice(st + 7, -1);
@@ -98,12 +137,20 @@ class Rules {
     }
   }
   merge(o) {
-    for (const k of ['block', 'block3p', 'allow']) for (const v of o[k]) this[k].add(v);
+    for (const k of ['block', 'block3p', 'allow', 'genCx', 'exGen']) for (const v of o[k]) this[k].add(v);
+    for (const k of ['genCls', 'genId']) for (const v of o[k].keys()) this[k].set(v, 1);
+    for (const k of ['exSite', 'js', 'jsEx']) for (const [h, l] of o[k]) for (const v of l) Rules.put(this[k], h, v);
     for (const k of ['hide', 'paths', 'paths3p', 'gen', 'gen3p', 'genAllow']) for (const [h, l] of o[k]) for (const v of l) Rules.put(this[k], h, v);
     return this;
   }
-  toJSON() { return { b: [...this.block], t: [...this.block3p], a: [...this.allow], c: [...this.hide], p: [...this.paths], q: [...this.paths3p], g: [...this.gen], g3: [...this.gen3p], ga: [...this.genAllow] }; }
-  static fromJSON(j) { const r = new Rules(); r.block = new Set(j.b); r.block3p = new Set(j.t); r.allow = new Set(j.a); r.hide = new Map(j.c); r.paths = new Map(j.p); r.paths3p = new Map(j.q); r.gen = new Map(j.g || []); r.gen3p = new Map(j.g3 || []); r.genAllow = new Map(j.ga || []); return r; }
+  /** only what element hiding and scriptlets need (kept by the Chromium service worker between wake-ups) */
+  cosmeticJSON() { return { c: [...this.hide], gc: [...this.genCls.keys()], gi: [...this.genId.keys()], gx: [...this.genCx], xg: [...this.exGen], xs: [...this.exSite], js: [...this.js], jx: [...this.jsEx] }; }
+  toJSON() { return { gc: [...this.genCls.keys()], gi: [...this.genId.keys()], gx: [...this.genCx], xg: [...this.exGen], xs: [...this.exSite], js: [...this.js], jx: [...this.jsEx], b: [...this.block], t: [...this.block3p], a: [...this.allow], c: [...this.hide], p: [...this.paths], q: [...this.paths3p], g: [...this.gen], g3: [...this.gen3p], ga: [...this.genAllow] }; }
+  static fromJSON(j) { const r = new Rules();
+    for (const v of j.gc || []) r.genCls.set(v, 1); for (const v of j.gi || []) r.genId.set(v, 1);
+    r.genCx = new Set(j.gx || []); r.exGen = new Set(j.xg || []); r.exSite = new Map(j.xs || []); r.js = new Map(j.js || []); r.jsEx = new Map(j.jx || []);
+    if (!j.b) { r.hide = new Map(j.c || []); return r; }
+    r.block = new Set(j.b); r.block3p = new Set(j.t); r.allow = new Set(j.a); r.hide = new Map(j.c); r.paths = new Map(j.p); r.paths3p = new Map(j.q); r.gen = new Map(j.g || []); r.gen3p = new Map(j.g3 || []); r.genAllow = new Map(j.ga || []); return r; }
 }
 
 function site(host) {
@@ -172,19 +219,72 @@ function shouldBlock(r, host, path, pageHost, fullUrl) {
   }
   return hit;
 }
-function cssFor(r, pageHost) {
-  const sels = [], raw = [];
-  let cur = pageHost.toLowerCase();
+/** every list entry for host and its parent domains */
+function forHost(map, host) {
+  const out = [];
+  let cur = host.toLowerCase();
   while (true) {
-    const l = r.hide.get(cur);
-    if (l) for (const s of l) { if (s[0] === '@') raw.push(s.slice(1)); else sels.push(s); }
+    const l = map.get(cur);
+    if (l) for (const v of l) out.push(v);
     const d = cur.indexOf('.');
     if (d < 0) break;
     cur = cur.slice(d + 1);
   }
-  if (!sels.length && !raw.length) return null;
-  return (sels.length ? sels.join(',\n') + '{display:none!important}\n' : '') + raw.join('\n');
+  return out;
 }
+function hideCss(sels) {
+  // in groups, so one selector the browser doesn't understand only loses its own group
+  let css = '';
+  for (let i = 0; i < sels.length; i += 20) css += sels.slice(i, i + 20).join(',\n') + '{display:none!important}\n';
+  return css;
+}
+/** CSS for a page: its own cosmetic filters + the complex generic ones, minus exceptions */
+function cssFor(r, pageHost) {
+  const sels = [], raw = [], ex = new Set(forHost(r.exSite, pageHost));
+  const skip = s => ex.has(s) || r.exGen.has(s);
+  for (const s of forHost(r.hide, pageHost)) { if (s[0] === '@') raw.push(s.slice(1)); else if (!skip(s)) sels.push(s); }
+  for (const s of r.genCx) if (!skip(s)) sels.push(s);
+  if (!sels.length && !raw.length) return null;
+  return hideCss(sels) + raw.join('\n');
+}
+/** generic ".class" / "#id" filters matching names the page actually uses (tokens: "c" + class or "i" + id) */
+function surveyCss(r, pageHost, tokens) {
+  const ex = new Set(forHost(r.exSite, pageHost)), sels = [];
+  for (const t of tokens) {
+    if (typeof t !== 'string' || t.length < 2 || t.length > 120) continue;
+    const name = t.slice(1), sel = (t[0] === 'c' ? '.' : '#') + name;
+    if ((t[0] === 'c' ? r.genCls : r.genId).has(name) && !ex.has(sel) && !r.exGen.has(sel) && /^[\w-]+$/.test(name)) sels.push(sel);
+  }
+  return sels.length ? hideCss(sels) : null;
+}
+/** scriptlets for a page: [[name, arg, …], …] */
+function scriptletsFor(r, pageHost) {
+  const off = new Set(forHost(r.jsEx, pageHost).map(n => SCRIPTLET_ALIAS[n] || n));
+  const seen = new Set(), out = [];
+  for (const s of forHost(r.js, pageHost)) { const k = JSON.stringify(s); if (!off.has(s[0]) && !seen.has(k)) { seen.add(k); out.push(s); } }
+  return out;
+}
+/** "a, b\\, c, /re,x/" → arguments (commas inside /regex/ or escaped stay) */
+function splitArgs(body) {
+  const out = []; let cur = '', re = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (ch === '\\' && i + 1 < body.length) { cur += body[i + 1] === ',' ? ',' : ch + body[i + 1]; i++; continue; }
+    if (ch === '/' && (cur.trim() === '' || re)) re = !re && cur.trim() === '' ? true : (re ? false : re);
+    if (ch === ',' && !re) { out.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur.trim());
+  return out.map(a => (a.length > 1 && ((a[0] === '"' && a.endsWith('"')) || (a[0] === "'" && a.endsWith("'")))) ? a.slice(1, -1) : a);
+}
+const SCRIPTLET_ALIAS = { 'set-constant': 'set', 'abort-on-property-read': 'aopr', 'abort-on-property-write': 'aopw', 'abort-current-script': 'acs',
+  'abort-current-inline-script': 'acs', 'acis': 'acs', 'no-setTimeout-if': 'nostif', 'prevent-setTimeout': 'nostif', 'no-setInterval-if': 'nosiif',
+  'prevent-setInterval': 'nosiif', 'prevent-fetch': 'no-fetch-if', 'prevent-xhr': 'no-xhr-if', 'addEventListener-defuser': 'aeld',
+  'prevent-addEventListener': 'aeld', 'window.open-defuser': 'nowoif', 'no-window-open-if': 'nowoif', 'prevent-window-open': 'nowoif',
+  'remove-attr': 'ra', 'remove-class': 'rc', 'remove-node-text': 'rmnt', 'prevent-eval-if': 'noeval-if', 'adjust-setTimeout': 'nano-stb',
+  'nano-setTimeout-booster': 'nano-stb', 'adjust-setInterval': 'nano-sib', 'nano-setInterval-booster': 'nano-sib', 'silent-noeval': 'noeval' };
+const SCRIPTLETS = new Set(['set', 'aopr', 'aopw', 'acs', 'nostif', 'nosiif', 'no-fetch-if', 'no-xhr-if', 'aeld', 'nowoif', 'ra', 'rc', 'rmnt',
+  'noeval-if', 'noeval', 'nano-stb', 'nano-sib', 'json-prune', 'nowebrtc']);
 /** Downloads a list and every list it !#includes (same folder). */
 async function fetchList(url, depth = 0) {
   const res = await fetch(url, { cache: 'no-store' });
@@ -199,4 +299,4 @@ async function fetchList(url, depth = 0) {
   }
   return text;
 }
-if (typeof module !== 'undefined') module.exports = { Rules, LISTS, shouldBlock, cssFor, site, glob };
+if (typeof module !== 'undefined') module.exports = { Rules, LISTS, shouldBlock, cssFor, surveyCss, scriptletsFor, splitArgs, site, glob };

@@ -18,11 +18,10 @@ def bg3():
     head = rp(head, 'function log(type, url, page, verdict, why) {', 'function logMem(type, url, page, verdict, why) {')
     head = rp(head, 'async function rebuild() {', 'async function loadRules() {')
     head = rp(head, 'async function ensure() {', 'async function ensureOld() {')
-    head = rp(head, '  await save(s); await refreshCache();\n  if (listsChanged) {', '  await save(s); await refreshCache(); await applyUser();\n  if (listsChanged) {')
-    msgs = rp(msgs, '    let errors = [];', '    if (m.rule || m.pause || m.blocking !== undefined) { await refreshCache(); await applyUser(); }\n    let errors = [];')
     msgs = rp(msgs, "if (m.log) { await refreshCache();", "if (m.log) { await logLoad(); await refreshCache();")
     msgs = rp(msgs, "if (m.clearLog) LOG.length = 0;", "if (m.clearLog) { await logLoad(); LOG.length = 0; await kv('log', []); }")
     msgs = rp(msgs, 'rules: rules ? rules.size() : 0, danger: !!bloom,', "rules: ((await kv('rule-count')) || {}).filters || 0, ruleInfo: (await kv('rule-count')) || null, danger: !!(await kv('danger-updated')),")
+    msgs = rp(msgs, 'ok: !errors.length, errors,', "ok: !errors.length, errors, userScripts: !!userScriptsApi(),")
     msgs = rp(msgs, 'blockedHere: m.tabId !== undefined ? (counts.get(m.tabId) || 0) : 0,', 'blockedHere: await matchedCount(m.tabId),')
     tail = open(os.path.join(here, 'mv3', 'tail.js')).read()
     start = '''
@@ -31,10 +30,12 @@ chrome.alarms.create('update', { periodInMinutes: 60 * 6, delayInMinutes: 2 });
 chrome.alarms.create('sync', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(a => {
   if (a.name === 'update') updateAll(false).then(refreshCache).catch(() => {});
-  if (a.name === 'sync') refreshCache().then(syncApp).then(ensureAdult).catch(() => {});
+  if (a.name === 'sync') refreshCache().then(syncApp).then(ensureAdult).then(async () => {
+    if (!!userScriptsApi() !== !!(await kv('user-scripts'))) await registerScriptlets(); // "Allow user scripts" was just switched on or off
+  }).catch(() => {});
 });
-chrome.runtime.onInstalled.addListener(() => { refreshCache().then(() => updateAll(false)).then(ensureAdult).catch(e => console.warn('Groveguard: first update', e)); });
-chrome.runtime.onStartup.addListener(() => { refreshCache().then(ensure).then(applyUser).then(syncApp).catch(() => {}); });
+chrome.runtime.onInstalled.addListener(() => { refreshCache().then(ensure).then(() => updateAll(false)).then(ensureAdult).catch(e => console.warn('Groveguard: first update', e)); });
+chrome.runtime.onStartup.addListener(() => { refreshCache().then(ensure).then(userChanged).then(syncApp).catch(() => {}); });
 refreshCache().catch(() => {});
 '''
     return head + tail + msgs + start
@@ -44,9 +45,10 @@ def manifest3():
     return {
         'manifest_version': 3, 'name': m['name'], 'version': version, 'description': m['description'], 'icons': m['icons'],
         'minimum_chrome_version': '111',
-        'permissions': ['declarativeNetRequest', 'declarativeNetRequestFeedback', 'webNavigation', 'tabs', 'alarms', 'scripting', 'unlimitedStorage'],
+        'permissions': ['declarativeNetRequest', 'declarativeNetRequestFeedback', 'webNavigation', 'tabs', 'alarms', 'scripting', 'userScripts', 'unlimitedStorage'],
         'host_permissions': ['<all_urls>'],
         'background': {'service_worker': 'sw.js'},
+        'content_scripts': m['content_scripts'],
         'action': {'default_popup': 'popup.html', 'default_title': 'Groveguard', 'default_icon': {'48': 'icon48.png'}},
         'options_ui': {'page': 'options.html', 'open_in_tab': True},
         'web_accessible_resources': [{'resources': m['web_accessible_resources'], 'matches': ['<all_urls>']}],
@@ -63,7 +65,7 @@ ff = dict(base); ff['manifest.json'] = open(os.path.join(here, 'manifest-firefox
 pack(os.path.join(here, 'groveguard-firefox.xpi'), ff)
 cr = {k: v for k, v in base.items() if k != 'bg.js'}
 cr['bg3.js'] = bg3().encode()
-cr['sw.js'] = b"// Groveguard service worker (Manifest V3)\nimportScripts('bloom.js', 'adblock.js', 'bg3.js');\n"
+cr['sw.js'] = b"// Groveguard service worker (Manifest V3)\nimportScripts('bloom.js', 'adblock.js', 'scriptlets.js', 'bg3.js');\n"
 cr['manifest.json'] = json.dumps(manifest3(), indent=2).encode()
 pack(os.path.join(here, 'groveguard-chromium.zip'), cr)
 un = os.path.join(here, 'build-chromium')

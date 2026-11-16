@@ -102,12 +102,62 @@ async function pullSettings() {
   for (const l of LISTS) if (a.lists && a.lists[l.id] !== undefined && !!s.lists[l.id] !== !!a.lists[l.id]) { s.lists[l.id] = !!a.lists[l.id]; listsChanged = true; }
   s.blocking = !!a.blocking; s.myBlock = a.myBlock || []; s.myAllow = a.myAllow || []; s.paused = a.paused || [];
   s.fromApp = Date.now();
-  await save(s); await refreshCache();
+  await save(s); await refreshCache(); await userChanged();
   if (listsChanged) {
     for (const l of LISTS) if (s.lists[l.id] && !(await kv('list:' + l.id))) { try { await downloadList(l); } catch (e) { } }
     await rebuild();
   }
   return 200;
+}
+// ---------------------------------------------------------------- element hiding + scriptlets
+/** a page (cosmetic.js) asking for its cosmetic filters, or reporting the class/id names it uses */
+async function cosmetic(m, sender) {
+  try {
+    if (!sender || !sender.tab) return;
+    if (!cache) await refreshCache();
+    const host = String(m.cos !== undefined ? m.cos : m.host || '').toLowerCase();
+    if (!host || !cache.blocking || pausedOn(host) || inList(cache.myAllow, host)) return;
+    const r = await getCos();
+    if (!r) return;
+    const css = m.survey ? surveyCss(r, host, m.survey.slice(0, 5000)) : cssFor(r, host);
+    if (css) insertCss(sender.tab.id, sender.frameId || 0, css);
+  } catch (e) { }
+}
+/** one script holding every site's scriptlets; inside a page it picks that page's and runs them (registered to run before the page's own scripts) */
+function scriptletCode(r) {
+  const T = {}, X = {};
+  for (const [h, l] of r.js) T[h] = l;
+  for (const [h, l] of r.jsEx) X[h] = l.map(n => SCRIPTLET_ALIAS[n] || n);
+  const j = o => JSON.stringify(o).replace(/</g, '\\u003c');
+  return '(function(){var T=' + j(T) + ',X=' + j(X) + ',h=location.hostname.toLowerCase(),out=[],off={},seen={},c,d,i,l,k;' +
+    'for(c=h;;){l=X[c];if(l)for(i=0;i<l.length;i++)off[l[i]]=1;d=c.indexOf(".");if(d<0)break;c=c.slice(d+1);}' +
+    'for(c=h;;){l=T[c];if(l)for(i=0;i<l.length;i++){k=JSON.stringify(l[i]);if(!off[l[i][0]]&&!seen[k]){seen[k]=1;out.push(l[i]);}}d=c.indexOf(".");if(d<0)break;c=c.slice(d+1);}' +
+    'if(out.length)(' + groveScriptlets.toString() + ')(out);})();';
+}
+const hostPattern = h => '*://*.' + h + '/*';
+function scriptletMatches(r) { return [...r.js.keys()].filter(h => /^[a-z0-9.-]+$/.test(h)).map(hostPattern); }
+function scriptletExcludes() { return cache.paused.concat(cache.myAllow).filter(h => /^[a-z0-9.-]+$/.test(h)).map(hostPattern); }
+/** (fallback, can be late) runs this site's scriptlets inside the page */
+async function scriptlets(tabId, frameId, url) {
+  try {
+    if (!cache) await refreshCache();
+    const host = hostOf(url);
+    if (!host || !/^https?:/.test(url) || !cache.blocking || pausedOn(host) || inList(cache.myAllow, host)) return;
+    const r = await getCos();
+    const list = r ? scriptletsFor(r, host) : [];
+    if (!list.length) return;
+    const viaTag = () => {
+      const code = '(' + groveScriptlets.toString() + ')(' + JSON.stringify(list) + ');';
+      const inject = 'try{var s=document.createElement("script");s.textContent=' + JSON.stringify(code) + ';(document.head||document.documentElement).appendChild(s);s.remove();}catch(e){}';
+      try { api.tabs.executeScript(tabId, { frameId, runAt: 'document_start', code: inject }); } catch (e) { }
+    };
+    if (api.scripting && api.scripting.executeScript) {
+      try {
+        const p = api.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, world: 'MAIN', injectImmediately: true, func: groveScriptlets, args: [list] });
+        if (p && p.catch) p.catch(() => { if (api.tabs.executeScript) viaTag(); });
+      } catch (e) { if (api.tabs.executeScript) viaTag(); }
+    } else viaTag();
+  } catch (e) { }
 }
 /** host or a parent of it is in the list */
 function inList(list, host) { return !!host && !!list && list.some(p => host === p || host.endsWith('.' + p)); }
@@ -184,6 +234,7 @@ async function rebuild() {
   if (s.custom) r.parse(s.custom);
   rules = r;
   adult = anyAdult ? ad : null;
+  if (typeof registerScriptlets === 'function' && typeof DNR === 'undefined') registerScriptlets();
   return r;
 }
 /** Downloads what's missing or older than a day (force = everything). */
@@ -207,6 +258,7 @@ async function ensure() {
     const buf = await kv('danger');
     if (buf) bloom = new Bloom(buf);
     await rebuild();
+    if ((await kv('fmt')) !== 2) { await kv('fmt', 2); if (await kv('meta')) { await updateAll(true); return; } } // older downloads have no generic cosmetic filters or scriptlets
     if (!(await kv('meta')) || !buf) await updateAll(false);
   })().finally(() => { loading = null; });
   return loading;
@@ -278,16 +330,34 @@ api.webRequest.onBeforeRequest.addListener(d => {
   return {};
 }, { urls: ['<all_urls>'] }, ['blocking']);
 
-// element hiding (site-specific cosmetic filters)
-api.webNavigation.onCommitted.addListener(d => {
-  if (!rules || !cache || !cache.blocking) return;
-  const host = hostOf(d.url);
-  if (!host || pausedOn(host)) return;
-  const css = cssFor(rules, host);
-  if (css) try { api.tabs.insertCSS(d.tabId, { code: css, frameId: d.frameId, runAt: 'document_start', cssOrigin: 'user' }).catch(() => {}); } catch (e) {
-    try { api.tabs.insertCSS(d.tabId, { code: css, frameId: d.frameId, runAt: 'document_start' }); } catch (e2) { }
+// element hiding and scriptlets (Firefox: the rules are in memory)
+function getCos() { return rules ? rules : ensure().then(() => rules); }
+function insertCss(tabId, frameId, css) {
+  try { api.tabs.insertCSS(tabId, { code: css, frameId, runAt: 'document_start', cssOrigin: 'user' }).catch(() => {}); } catch (e) {
+    try { api.tabs.insertCSS(tabId, { code: css, frameId, runAt: 'document_start' }); } catch (e2) { }
   }
-});
+}
+api.webNavigation.onCommitted.addListener(d => { scriptlets(d.tabId, d.frameId, d.url); });
+// Firefox: the scriptlets are registered as a content script, so they run before the page's own scripts
+let slReg = null, slBusy = null;
+function registerScriptlets() {
+  const run = async () => {
+    try { if (slReg) { const old = slReg; slReg = null; await old.unregister(); } } catch (e) { }
+    if (!rules || !api.contentScripts) return;
+    if (!cache) await refreshCache();
+    if (!cache.blocking) return;
+    const matches = scriptletMatches(rules);
+    if (!matches.length) return;
+    const wrapper = 'try{var s=document.createElement("script");s.textContent=' + JSON.stringify(scriptletCode(rules)) +
+      ';(document.head||document.documentElement).appendChild(s);s.remove();}catch(e){}';
+    const ex = scriptletExcludes(), o = { matches, js: [{ code: wrapper }], runAt: 'document_start', allFrames: true };
+    if (ex.length) o.excludeMatches = ex;
+    try { slReg = await api.contentScripts.register(o); } catch (e) { }
+  };
+  slBusy = (slBusy || Promise.resolve()).then(run, run);
+  return slBusy;
+}
+async function userChanged() { await registerScriptlets(); }
 function badge(tabId) {
   const ba = api.browserAction || api.action;
   if (!ba || !ba.setBadgeText) return;
@@ -298,6 +368,8 @@ api.tabs.onRemoved.addListener(id => counts.delete(id));
 
 // ---------------------------------------------------------------- messages from the popup, options and warning pages
 api.runtime.onMessage.addListener((m, sender, reply) => {
+  if (m && (m.cos !== undefined || m.survey)) { cosmetic(m, sender); return false; } // from cosmetic.js in a page
+  if (sender && sender.tab && sender.url && !sender.url.startsWith(api.runtime.getURL(''))) return false; // only Groveguard's own pages may change settings
   (async () => {
     if (cache && cache.appKey && (m.rule || m.setList || m.pause || m.blocking !== undefined)) {
       // linked: the app is in charge — save the change there too
@@ -335,6 +407,7 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
       return reply({ appState, pending: OUTBOX.length });
     }
     if (m.log) { await refreshCache(); return reply({ log: LOG.slice(-500).reverse(), myBlock: cache.myBlock, myAllow: cache.myAllow }); }
+    if (m.rule || m.pause || m.blocking !== undefined) { await refreshCache(); await userChanged(); }
     let errors = [];
     if (m.update) errors = await updateAll(true);
     await refreshCache();

@@ -103,6 +103,19 @@ public class StatusProvider extends ContentProvider {
             org.grove.guard.web.WebHistory.visit(c, arg);
             return out;
         }
+        if ("cosmetic".equals(method)) {
+            // everything Grove Launcher's browser needs for one page: its CSS, its scriptlets, its exceptions
+            out.putString("css", org.grove.guard.web.WebFilter.css(c, arg));
+            out.putString("js", org.grove.guard.web.WebFilter.scriptlets(c, arg));
+            out.putString("ex", org.grove.guard.web.WebFilter.cosmeticExceptions(c, arg));
+            out.putInt("v", org.grove.guard.web.WebFilter.surveyorVersion());
+            return out;
+        }
+        if ("surveyor".equals(method)) {
+            out.putString("js", org.grove.guard.web.WebFilter.surveyor(c));
+            out.putInt("v", org.grove.guard.web.WebFilter.surveyorVersion());
+            return out;
+        }
         if ("css".equals(method)) { out.putString("css", org.grove.guard.web.WebFilter.css(c, arg)); return out; }
         if ("webStatus".equals(method)) {
             out.putBoolean("enabled", org.grove.guard.web.WebFilter.enabled(c));

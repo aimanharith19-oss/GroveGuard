@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Groveguard",
-  "version": "1.7.0",
-  "description": "Blocks ads, trackers and malware with uBlock Origin and EasyList filter lists you choose, and warns before dangerous sites. Lists update daily; nothing you browse is sent anywhere.",
+  "version": "1.8.0",
+  "description": "Blocks ads, trackers, 18+ and dangerous sites with uBlock Origin and EasyList filter lists you choose: network blocking, element hiding and scriptlets. Lists update daily; nothing you browse is sent anywhere.",
   "icons": {
     "48": "icon48.png",
     "96": "icon96.png",
@@ -16,6 +16,7 @@
     "tabs",
     "alarms",
     "scripting",
+    "userScripts",
     "unlimitedStorage"
   ],
   "host_permissions": [
@@ -24,6 +25,18 @@
   "background": {
     "service_worker": "sw.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "cosmetic.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Groveguard",
