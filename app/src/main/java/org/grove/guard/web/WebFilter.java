@@ -102,9 +102,11 @@ public final class WebFilter {
 
     public static boolean enabled(Context c) { return Prefs.on(c, ENABLED, true); }
 
-    public static boolean listOn(Context c, ListInfo l) { return Prefs.sp(c).getBoolean("web_list_" + l.id, l.on); }
+    /** The 18+ lists are always on: they can't be switched off. */
+    public static boolean listOn(Context c, ListInfo l) { return l.adult || Prefs.sp(c).getBoolean("web_list_" + l.id, l.on); }
 
     public static void setList(final Context c, ListInfo l, boolean on) {
+        if (l.adult) on = true; // locked on
         Prefs.set(c, "web_list_" + l.id, on);
         final ListInfo fl = l;
         App.IO.execute(new Runnable() {
@@ -359,18 +361,18 @@ public final class WebFilter {
     }
 
     private static Verdict decide(Context c, String host, String path, String url, String pageHost, boolean main) {
-        if (inList(Prefs.set(c, MY_ALLOW), host)) return new Verdict(false, "you", "your allow list");
-        if (inList(Prefs.set(c, MY_BLOCK), host)) return new Verdict(true, "you", "your block list");
-        boolean paused = inList(Prefs.set(c, PAUSED), main ? host : pageHost);
         if (rules == null) ensureLoaded(c);
         if (!adultLoaded) loadAdult(c); // fast, so 18+ sites are blocked even on the first page after Groveguard starts
-        if (!paused) {
+        { // 18+ is locked on: checked first, and not lifted by pausing a site or by your allow list
             List<DomainSet> sets = adultSets; List<String> names = adultNames;
             for (int i = 0; i < sets.size() && i < names.size(); i++) {
                 String m = sets.get(i).match(host);
                 if (m != null) return new Verdict(true, "adult", "18+ list: " + names.get(i) + (m.equals(host) ? "" : " (listed as " + m + ")"));
             }
         }
+        if (inList(Prefs.set(c, MY_ALLOW), host)) return new Verdict(false, "you", "your allow list");
+        if (inList(Prefs.set(c, MY_BLOCK), host)) return new Verdict(true, "you", "your block list");
+        boolean paused = inList(Prefs.set(c, PAUSED), main ? host : pageHost);
         if (main) {
             WebCheck.Hit hit = Sigs.domainsLoaded() ? WebCheck.check(c, host) : null;
             if (hit != null && !paused) return new Verdict(true, "danger", "dangerous-site list" + (hit.listed.equals(host) ? "" : " (" + hit.listed + ")"));

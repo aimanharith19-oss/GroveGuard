@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Groveguard",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Blocks ads, trackers and malware with uBlock Origin and EasyList filter lists you choose, and warns before dangerous sites. Lists update daily; nothing you browse is sent anywhere.",
   "icons": {
     "48": "icon48.png",

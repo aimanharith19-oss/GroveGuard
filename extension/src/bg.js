@@ -132,6 +132,7 @@ async function kv(key, val) {
 async function settings() {
   const s = (await kv('settings')) || {};
   if (!s.lists) { s.lists = {}; for (const l of LISTS) s.lists[l.id] = l.on; }
+  for (const l of LISTS) if (l.adult) s.lists[l.id] = true; // 18+ lists are locked on
   if (s.blocking === undefined) s.blocking = true;
   if (s.danger === undefined) s.danger = true;
   if (!s.paused) s.paused = [];
@@ -226,15 +227,15 @@ api.webNavigation.onBeforeNavigate.addListener(async details => {
   try {
     await ensure();
     const s = cache || await settings();
+    const ah = adultHit(u.hostname); // locked on: not lifted by pause or your allow list
+    if (ah) {
+      log('page', details.url, '', 'blocked', '18+ list: ' + ah.name); visit(details.url, true, '18+ list: ' + ah.name);
+      return;
+    }
     if (inList(s.myAllow, u.hostname)) { log('page', details.url, '', 'allowed', 'your allow list'); visit(details.url, false, 'your allow list'); return; }
     if (inList(s.myBlock, u.hostname)) {
       log('page', details.url, '', 'blocked', 'your block list'); visit(details.url, true, 'your block list');
       // the page itself is stopped before it loads (webRequest main_frame)
-      return;
-    }
-    const ah = pausedOn(u.hostname) ? null : adultHit(u.hostname);
-    if (ah) {
-      log('page', details.url, '', 'blocked', '18+ list: ' + ah.name); visit(details.url, true, '18+ list: ' + ah.name);
       return;
     }
     if (!s.danger || !bloom) { log('page', details.url, '', 'allowed', ''); visit(details.url, false, ''); return; }
@@ -251,11 +252,11 @@ api.webRequest.onBeforeRequest.addListener(d => {
     // stop your blocked sites and 18+ sites before the page loads (the dangerous-site warning is handled on navigation)
     let mu; try { mu = new URL(d.url); } catch (e) { return {}; }
     if (!cache || (mu.protocol !== 'http:' && mu.protocol !== 'https:')) return {};
+    const ah = adultHit(mu.hostname);
+    if (ah) return { redirectUrl: blockUrl('adult', mu.hostname, '18+ list: ' + ah.name, ah.matched) };
     if (inList(cache.myAllow, mu.hostname)) return {};
     const you = mine(cache.myBlock, mu.hostname);
     if (you) return { redirectUrl: blockUrl('you', mu.hostname, 'your block list', you) };
-    const ah = pausedOn(mu.hostname) ? null : adultHit(mu.hostname);
-    if (ah) return { redirectUrl: blockUrl('adult', mu.hostname, '18+ list: ' + ah.name, ah.matched) };
     return {};
   }
   if (!cache) return {};
@@ -267,12 +268,12 @@ api.webRequest.onBeforeRequest.addListener(d => {
     log(d.type, d.url, page, 'blocked', why);
     return { cancel: true };
   };
+  const ah = adultHit(u.hostname);
+  if (ah) return block('18+ list: ' + ah.name);
   if (inList(cache.myAllow, u.hostname)) { log(d.type, d.url, page, 'allowed', 'your allow list'); return {}; }
   if (inList(cache.myBlock, u.hostname)) return block('your block list');
   if (!rules || !cache.blocking || pausedOn(page)) { log(d.type, d.url, page, 'allowed', pausedOn(page) ? 'site paused' : ''); return {}; }
   if (shouldBlock(rules, u.hostname, u.pathname + u.search, page, d.url)) return block('filter lists');
-  const ah = adultHit(u.hostname);
-  if (ah) return block('18+ list: ' + ah.name);
   log(d.type, d.url, page, 'allowed', '');
   return {};
 }, { urls: ['<all_urls>'] }, ['blocking']);
@@ -305,6 +306,7 @@ api.runtime.onMessage.addListener((m, sender, reply) => {
     }
     const s = await settings();
     if (m.allow) { s.allowed.push(m.allow); await save(s); }
+    if (m.setList && (LISTS.find(x => x.id === m.setList.id) || {}).adult) m.setList.on = true; // locked on
     if (m.setList) { s.lists[m.setList.id] = m.setList.on; await save(s); if (m.setList.on) { const l = LISTS.find(x => x.id === m.setList.id); if (l && !(await kv('list:' + l.id))) { try { await downloadList(l); } catch (e) { } } } await rebuild(); }
     if (m.blocking !== undefined) { s.blocking = m.blocking; await save(s); }
     if (m.danger !== undefined) { s.danger = m.danger; await save(s); }
@@ -350,7 +352,13 @@ if (api.alarms) {
   api.alarms.create('update', { periodInMinutes: 60 * 6, delayInMinutes: 2 });
   api.alarms.onAlarm.addListener(a => { if (a.name === 'update') updateAll(false).then(refreshCache).catch(() => {}); });
   api.alarms.create('sync', { periodInMinutes: 1 });
-  api.alarms.onAlarm.addListener(a => { if (a.name === 'sync') syncApp(); });
+  api.alarms.onAlarm.addListener(a => { if (a.name === 'sync') { syncApp(); if (!adult) ensureAdult().catch(() => {}); } });
 }
-refreshCache().then(ensure).then(syncApp).catch(() => {});
+/** the locked-on 18+ lists: download any that aren't here yet */
+async function ensureAdult() {
+  let got = false;
+  for (const l of LISTS) if (l.adult) { const j = await kv('list:' + l.id); if (!j || !j.domains) { try { await downloadList(l); got = true; } catch (e) { } } }
+  if (got) await rebuild();
+}
+refreshCache().then(ensure).then(ensureAdult).then(syncApp).catch(() => {});
 setInterval(() => { if (LOGBOX.length) syncApp(); }, 5000);

@@ -50,7 +50,7 @@ public class WebPage {
         }));
         int adultN = WebFilter.adultSites(a);
         if (adultN != 0) st.addView(Ui.item(a, R.drawable.ic_shield, "18+ blocking", adultN > 0
-                ? String.format(java.util.Locale.getDefault(), "On · %,d sites blocked, in Grove Launcher and the linked extension", adultN)
+                ? String.format(java.util.Locale.getDefault(), "Always on · %,d sites blocked, in Grove Launcher and the linked extension", adultN)
                 : "Switched on, but the list isn't downloaded yet — tap to download", null, new View.OnClickListener() {
             @Override public void onClick(View v) { WebFilter.update(a, true); Ui.toast(a, "Downloading lists…"); redraw(); }
         }));
@@ -183,6 +183,7 @@ public class WebPage {
             String err = org.grove.guard.Prefs.str(a, "web_err_" + l.id, "");
             String sub = lo && up == 0 && !err.isEmpty() ? "Download failed — " + err + " · tap Update lists now" : up > 0 ? String.format(java.util.Locale.getDefault(), "%,d rules · ", WebFilter.ruleCount(a, l)) + Events.ago(a, up)
                     : lo ? "Not downloaded yet" : "Off";
+            if (l.adult) { fl.addView(Ui.item(a, 0, l.name, "Always on · " + sub, null, null)); continue; }
             fl.addView(Ui.item(a, 0, l.name, sub, lo, new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     boolean now = !WebFilter.listOn(a, l);

@@ -16,6 +16,11 @@ let show = function (r) {
     row.innerHTML = '<span><b></b><small></small></span><input type="checkbox">';
     row.querySelector('b').textContent = l.name;
     row.querySelector('small').textContent = meta ? meta.rules.toLocaleString() + ' rules · ' + new Date(meta.updated).toLocaleDateString() : (r.settings.lists[l.id] ? 'not downloaded yet' : 'off');
+    if (l.adult) { // 18+ lists are locked on: no switch
+      row.querySelector('input').remove();
+      row.querySelector('small').textContent = 'always on · ' + (meta ? meta.rules.toLocaleString() + ' sites' : 'downloading…');
+      box.appendChild(row); continue;
+    }
     const cb = row.querySelector('input'); cb.checked = !!r.settings.lists[l.id];
     cb.onchange = () => { row.querySelector('small').textContent = 'working…'; send({ setList: { id: l.id, on: cb.checked } }); };
     box.appendChild(row);
