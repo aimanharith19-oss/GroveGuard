@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Block page — same wording as Grove Launcher's, plus the reason (which list, which entry matched).
-const q = new URLSearchParams(location.search), h = q.get('h') || '', m = q.get('m') || '';
+const q = new URLSearchParams(location.search), m = q.get('m') || '';
+let h = q.get('h') || '';
+if (!h && location.hash.length > 1) { try { h = new URL(decodeURIComponent(location.hash.slice(1))).hostname; } catch (e) { } } // Chromium: the address comes after the #
 const kind = q.get('k') || (q.get('r') === 'you' ? 'you' : 'adult'), why = q.get('w') || (kind === 'you' ? 'your block list' : '18+ list');
 const $ = id => document.getElementById(id), dot = s => s.replace(/\./g, '[.]');
 const title = kind === 'adult' ? '18+ site blocked' : 'site blocked';

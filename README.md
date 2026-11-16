@@ -43,6 +43,11 @@ firewall_wanted, firewall_mode, blocked, profile, backend, summary) and `/events
 lines; visited-site names are withheld), and controls Groveguard with the broadcasts above sent to
 `org.grove.guard/.fw.AutomationReceiver`.
 
+## What's new in 1.9
+- **18+ lists locked on**: no switch, on by default, and not lifted by pausing a site or by your allow list (app and extension).
+- **Chromium extension is now Manifest V3** (Vivaldi, Chrome, Edge, Brave removed Manifest V2, which is why the old one kept being switched off or removed). Blocking uses the browser's own declarativeNetRequest rules: 18+ sites, your block/allow rules, paused sites and the filter lists. Install: unzip `groveguard-chromium.zip`, open `vivaldi://extensions` (or `chrome://extensions`), turn on Developer mode, **Load unpacked**, pick the folder — and keep that folder where it is.
+- The Firefox extension stays Manifest V2 (`extension/build.py` builds both), and is built into Grove Browser.
+
 ## What's new in 1.8
 - **18+ blocking fixed**: the 18+ lists are kept as compact site fingerprints (~8 bytes a site, load in milliseconds), so they block from the very first page after Groveguard starts, without the memory spikes of before. The web tab shows how many 18+ sites are blocked, and a list whose download failed says so.
 - **The app controls the extension**: once linked (history tab), the extension follows the web tab — filter lists, 18+, your block/allow rules, paused sites. Changes made in the extension are saved in the app too.
