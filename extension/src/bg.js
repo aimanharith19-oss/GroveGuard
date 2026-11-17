@@ -54,12 +54,21 @@ let HIST = null, histDirty = false, OUTBOX = null;
 let BROWSER = navigator.userAgent.includes('Firefox') ? 'Firefox' : navigator.userAgent.includes('Edg/') ? 'Edge' : 'Chromium';
 /** Built into Grove Browser: the browser hands over the Groveguard app's pairing code, so linking needs no typing.
  *  (Only Grove Browser's copy of this extension has the nativeMessaging permission; elsewhere this does nothing.) */
+let linkTries = 0, linkGot = false;
 function linkViaGroveBrowser() {
   try {
-    if (!api.runtime.connectNative) return;
+    if (!api.runtime.connectNative) { if (!linkTries++) console.log('groveguard: no native messaging here'); return; }
+    if (linkGot) return;
+    console.log('groveguard: asking the browser for the Groveguard link, try', linkTries + 1);
     const port = api.runtime.connectNative('groveguard');
+    // Grove Browser may not be listening yet right after start-up (or Groveguard isn't installed yet): ask again later
+    let retried = false;
+    const again = () => { if (retried || linkGot) return; retried = true; try { port.disconnect(); } catch (e) { } if (++linkTries < 40) setTimeout(linkViaGroveBrowser, Math.min(60000, 5000 * linkTries)); };
+    port.onDisconnect.addListener(p => { console.log('groveguard: link port closed', (p && p.error && p.error.message) || ''); again(); });
+    setTimeout(again, 20000);
     port.onMessage.addListener(async m => {
       if (!m || typeof m.code !== 'string') return;
+      linkGot = true;
       if (m.name) BROWSER = String(m.name).replace(/[^A-Za-z ]/g, '').slice(0, 20) || BROWSER;
       const k = m.code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!k) return;
@@ -71,8 +80,7 @@ function linkViaGroveBrowser() {
       }
       syncApp();
     });
-    port.onDisconnect.addListener(() => {});
-  } catch (e) { }
+  } catch (e) { if (++linkTries < 40) setTimeout(linkViaGroveBrowser, 15000); }
 }
 async function histLoad() { if (!HIST) { HIST = (await kv('history')) || []; OUTBOX = (await kv('outbox')) || []; } }
 function visit(url, blocked, why) {
