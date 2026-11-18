@@ -101,7 +101,8 @@ Web protection is now a **browser extension** (`extension/`): it downloads the s
 (MaintainTeam HypatiaDatabases), checks every page you open, sub-domains included, and shows a warning page with
 *go back* / *continue anyway*. It works offline after the first download and sends nothing anywhere.
 - `extension/groveguard-firefox.xpi` — Firefox for Android/desktop (needs Mozilla signing for release Firefox; Nightly can load it unsigned).
-- `extension/groveguard-chromium.zip` — Chromium browsers that support extensions (load unpacked).
+- `extension/groveguard-chromium.crx` — Chromium browsers incl. Vivaldi for Android: drag the .crx from Files onto the extensions page (signed, so updates replace it and it isn't treated as a loose folder).
+- `extension/groveguard-chromium.zip` — the same, for load unpacked on a computer (load unpacked crashes Vivaldi for Android).
 - The app can save both to Downloads (Protect → Web protection). Link checks by share/selection and Grove Launcher's
   `checkUrl` still run in the app.
 
