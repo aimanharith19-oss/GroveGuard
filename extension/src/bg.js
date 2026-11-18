@@ -33,15 +33,29 @@ function domainOf(line) {
   if (s.length < 3 || !s.includes('.') || s === 'localhost' || s === '0.0.0.0' || !/^[a-z0-9._-]+$/.test(s)) return null;
   return s;
 }
-/** the 18+ list (and its entry) that covers this site, or null */
+/** 18+ words in a site's address: catches adult sites the lists don't have yet (and ones you put on your allow list) */
+const ADULT_WORDS = new Set(['porn', 'porno', 'xxx', 'sex', 'hentai', 'nsfw', 'xvideos', 'xnxx', 'xhamster', 'redtube', 'youporn', 'pornhub',
+  'brazzers', 'onlyfans', 'chaturbate', 'stripchat', 'camsoda', 'bongacams', 'livejasmin', 'rule34', 'nhentai', 'spankbang', 'eporner',
+  'tnaflix', 'beeg', 'fapello', 'erome', 'motherless', 'hanime', 'javhd', 'jav', 'milf', 'camgirls', 'escort', 'escorts', 'nude', 'nudes']);
+function adultWords(host) {
+  const parts = host.toLowerCase().split('.').slice(0, -1); // the domain ending (.com, .xxx) is checked below
+  for (const label of parts) {
+    if (/porn|hentai|xxx|xvideo|onlyfans/.test(label)) return label;
+    for (const w of label.split('-')) if (ADULT_WORDS.has(w)) return w;
+  }
+  return /\.(xxx|porn|sex|adult)$/.test(host.toLowerCase()) ? host.split('.').pop() : null;
+}
+/** the 18+ list (and its entry) that covers this site, or null. Locked on: checked before your allow list and pauses. */
 function adultHit(host) {
-  if (!adult || !host) return null;
+  if (!host) return null;
   let s = host.toLowerCase();
-  for (;;) {
+  if (adult) for (;;) {
     for (const [name, set] of adult) if (set.has(s)) return { name, matched: s };
-    const d = s.indexOf('.'); if (d < 0 || s.indexOf('.', d + 1) < 0) return null;
+    const d = s.indexOf('.'); if (d < 0 || s.indexOf('.', d + 1) < 0) break;
     s = s.slice(d + 1);
   }
+  const w = adultWords(host);
+  return w ? { name: '18+ words in the address', matched: w } : null;
 }
 function mine(list, host) { return host && list ? list.find(p => host === p || host.endsWith('.' + p)) || null : null; }
 /** the block page, with why (same wording as Grove Launcher's) */
@@ -398,6 +412,12 @@ api.tabs.onRemoved.addListener(id => counts.delete(id));
 
 // ---------------------------------------------------------------- messages from the popup, options and warning pages
 api.runtime.onMessage.addListener((m, sender, reply) => {
+  if (m && m.adultPage && sender && sender.tab && sender.frameId === 0) { // the page labels itself 18+ (RTA / rating: adult)
+    const h = hostOf(sender.url || '');
+    if (h) { log('page', sender.url, '', 'blocked', '18+ page label'); visit(sender.url, true, '18+ page label');
+      api.tabs.update(sender.tab.id, { url: blockUrl('adult', h, '18+ page label', m.adultPage) }); }
+    return false;
+  }
   if (m && (m.cos !== undefined || m.survey)) { cosmetic(m, sender); return false; } // from cosmetic.js in a page
   if (sender && sender.tab && sender.url && !sender.url.startsWith(api.runtime.getURL(''))) return false; // only Groveguard's own pages may change settings
   (async () => {

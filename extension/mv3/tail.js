@@ -156,6 +156,14 @@ chrome.webNavigation.onBeforeNavigate.addListener(async d => {
   try {
     if (!cache) await refreshCache();
     const s = cache;
+    // 18+ words in the address (the 18+ lists themselves are browser rules): locked on, even for your allow list
+    const aw = adultWords(u.hostname);
+    if (aw) {
+      warned.set(d.tabId, d.url);
+      log('page', d.url, '', 'blocked', '18+ words in the address'); visit(d.url, true, '18+ words in the address');
+      chrome.tabs.update(d.tabId, { url: blockUrl('adult', u.hostname, '18+ words in the address', aw) });
+      return;
+    }
     if (!s.danger || inList(s.myAllow, u.hostname)) return;
     if (!bloom) { const buf = await kv('danger'); if (buf) bloom = new Bloom(buf); }
     if (!bloom) return;

@@ -6,6 +6,17 @@
   const api = typeof browser !== 'undefined' ? browser : chrome;
   const host = location.hostname;
   const send = m => { try { const p = api.runtime.sendMessage(m, () => void api.runtime.lastError); if (p && p.catch) p.catch(() => { }); } catch (e) { } };
+  // Adult sites label themselves (the RTA label, or rating "adult"/"mature"): that blocks the page even if it's on your allow list.
+  if (window === window.top) {
+    const rta = () => {
+      for (const m of document.querySelectorAll('meta[name="rating" i], meta[name="RATING"], meta[http-equiv="pics-label" i]')) {
+        const c = (m.getAttribute('content') || '').toLowerCase();
+        if (/rta-5042-1996-1400-1577-rta|\badult\b|\bmature\b|\bporn/.test(c)) { send({ adultPage: c.slice(0, 60) }); return true; }
+      }
+      return false;
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rta, { once: true }); else rta();
+  }
   send({ cos: host });
   const seen = new Set();
   let pending = [], timer = 0, total = 0;

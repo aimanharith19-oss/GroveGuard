@@ -716,22 +716,33 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     /** Web protection is a browser extension now (accessibility services make banking apps refuse to run). */
     public void toggleWeb() {
-        Ui.dialog(this).setTitle("Web protection")
-                .setMessage("Groveguard's web protection lives in your browser as an extension. It blocks ads, trackers and malware with the "
-                        + "uBlock Origin and EasyList filter lists you choose (tap its icon \u2192 filter lists), warns before dangerous sites, "
-                        + "and updates everything daily. Nothing you browse is sent anywhere.\n\n"
-                        + "Firefox: Firefox only installs extensions signed by Mozilla. Sign groveguard-firefox.xpi for free at addons.mozilla.org "
-                        + "(Developer Hub \u2192 Submit \u2192 \u201COn your own\u201D), then in Firefox: Settings \u2192 About Firefox, tap the logo 5 times, "
-                        + "go back, and choose \u201CInstall extension from file\u201D. Firefox Nightly can also install it unsigned.\n\n"
-                        + "Chromium browsers with extensions (Edge Canary, Lemur, Quetta\u2026): turn on developer mode on the extensions page "
-                        + "and load groveguard-chromium.zip.\n\nThe files are saved to your Downloads folder.")
-                .setPositiveButton("Save Firefox", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) { saveAsset("groveguard-firefox.xpi", "application/x-xpinstall"); }
-                })
-                .setNeutralButton("Save Chromium", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) { saveAsset("groveguard-chromium.zip", "application/zip"); }
+        // pick the browser, the file goes to Downloads; each line says how to install it there
+        final String[] names = { "Grove Browser", "Vivaldi (and other Chromium browsers on Android)", "Firefox", "Computer (Chrome, Edge, Vivaldi, Brave)" };
+        Ui.dialog(this).setTitle("Web protection extension")
+                .setItems(names, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        if (w == 0) howTo("Grove Browser", "Groveguard is already built into Grove Browser and links to this app by itself. Nothing to install.", null, null);
+                        else if (w == 1) howTo("Vivaldi", "1. In Vivaldi open the extensions page and turn on developer mode.\n"
+                                + "2. Remove any older Groveguard there.\n"
+                                + "3. Open your Files app \u2192 Downloads and drag groveguard-chromium.crx onto the extensions page.\n"
+                                + "4. Open Groveguard's options and pair it with this app.\n\n"
+                                + "Don't use \u201Cload unpacked\u201D on Android, it crashes Vivaldi.", "groveguard-chromium.crx", "application/x-chrome-extension");
+                        else if (w == 2) howTo("Firefox", "Firefox only installs extensions signed by Mozilla. Sign groveguard-firefox.xpi for free at addons.mozilla.org "
+                                + "(Developer Hub \u2192 Submit \u2192 \u201COn your own\u201D), then in Firefox: Settings \u2192 About Firefox, tap the logo 5 times, "
+                                + "go back and choose \u201CInstall extension from file\u201D. Firefox Nightly can also install it unsigned.", "groveguard-firefox.xpi", "application/x-xpinstall");
+                        else howTo("Computer", "Unzip groveguard-chromium.zip into a folder you keep. On the browser's extensions page turn on developer mode, "
+                                + "choose \u201CLoad unpacked\u201D and pick that folder.", "groveguard-chromium.zip", "application/zip");
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private void howTo(String title, String text, final String file, final String mime) {
+        android.app.AlertDialog.Builder b = Ui.dialog(this).setTitle(title).setMessage(text + (file != null ? "\n\nThe file is saved to your Downloads folder." : ""));
+        if (file != null) b.setPositiveButton("Save file", new android.content.DialogInterface.OnClickListener() {
+            @Override public void onClick(android.content.DialogInterface d, int w) { saveAsset(file, mime); }
+        });
+        b.setNegativeButton(android.R.string.cancel, null).show();
     }
 
     private void saveAsset(final String name, final String mime) {
