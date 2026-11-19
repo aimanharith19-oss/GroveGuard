@@ -50,7 +50,7 @@ public class CheckActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { finish(); } });
         LinearLayout card = Ui.col(this);
-        card.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.78f));
+        card.setBackground(Ui.layer(this, Ui.LAYER));
         card.setPadding(Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 14));
         card.setClickable(true);
         LinearLayout head = Ui.row(this);

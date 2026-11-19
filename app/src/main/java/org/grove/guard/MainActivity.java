@@ -49,7 +49,8 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     private Ui.Pal p;
     private FrameLayout content;
     private LinearLayout nav;          // bottom app bar
-    private LinearLayout pivot;        // pivot headers
+    private LinearLayout pivot;        // selector bar tabs
+    private View indicator;            // the accent pill under the selected tab
     private android.widget.HorizontalScrollView pivotScroll;
     private TextView appLabel;
     private LinearLayout menu;         // expanded app-bar menu
@@ -71,41 +72,53 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         FrameLayout frame = new FrameLayout(this);
         frame.setBackground(Ui.tintBackground(this, 0.38f));
         LinearLayout root = Ui.col(this);
-        // panorama title like Grovebook: huge, light, lowercase, one word; slides slower than the pages
-        appLabel = Ui.text(this, "groveguard", 72, 0xFFFFFFFF);
-        appLabel.setTypeface(Ui.light());
-        appLabel.setLetterSpacing(-3f / 72f);
+        // Fluent title bar: app icon + name on the left, command buttons on the right
+        LinearLayout titleBar = Ui.row(this);
+        titleBar.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 6), 0);
+        android.widget.ImageView logo = Ui.icon(this, R.drawable.ic_shield_check, Ui.accentOnDark(this), 20);
+        titleBar.addView(logo);
+        appLabel = Ui.text(this, "Groveguard", 18, 0xFFFFFFFF);
+        appLabel.setTypeface(Ui.semibold());
         appLabel.setSingleLine();
-        appLabel.setIncludeFontPadding(false);
-        appLabel.setPadding(Ui.dp(this, 12), Ui.dp(this, 2), 0, 0);
-        FrameLayout titleClip = new FrameLayout(this);
-        titleClip.setClipChildren(true);
-        titleClip.addView(appLabel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(titleClip);
-        pivotScroll = new android.widget.HorizontalScrollView(this);
-        pivotScroll.setHorizontalScrollBarEnabled(false);
-        pivot = Ui.row(this);
-        pivot.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 80), 0);
-        pivotScroll.addView(pivot, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(pivotScroll);
-        content = new SwipeFrame(this);
-        root.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        appLabel.setPadding(Ui.dp(this, 12), 0, 0, 0);
+        titleBar.addView(appLabel, Ui.lpW(1));
         nav = Ui.row(this);
         nav.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        nav.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.86f));
-        nav.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 6), 0);
-        root.addView(nav, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 56)));
+        titleBar.addView(nav, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        root.addView(titleBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 56)));
+        // Fluent selector bar: icon + label tabs with the accent pill under the selected one
+        pivotScroll = new android.widget.HorizontalScrollView(this);
+        pivotScroll.setHorizontalScrollBarEnabled(false);
+        FrameLayout bar = new FrameLayout(this);
+        pivot = Ui.row(this);
+        pivot.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        bar.addView(pivot, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 44)));
+        indicator = new View(this);
+        indicator.setBackground(Ui.round(Ui.accentOnDark(this), Ui.dp(this, 1.5f)));
+        bar.addView(indicator, new FrameLayout.LayoutParams(Ui.dp(this, 16), Ui.dp(this, 3), Gravity.BOTTOM | Gravity.START));
+        pivotScroll.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(pivotScroll);
+        View rule = new View(this);
+        rule.setBackgroundColor(Ui.STROKE);
+        root.addView(rule, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Ui.dp(this, 1) / 2)));
+        content = new SwipeFrame(this);
+        root.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         frame.addView(root);
+        // "•••" opens a Fluent menu flyout under the title bar
         menu = Ui.col(this);
-        menu.setBackgroundColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.78f));
-        menu.setPadding(Ui.dp(this, 24), Ui.dp(this, 14), Ui.dp(this, 24), Ui.dp(this, 70));
+        menu.setBackground(Ui.layer(this, Ui.LAYER_ALT));
+        menu.setElevation(Ui.dp(this, 16));
+        menu.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
+        menu.setMinimumWidth(Ui.dp(this, 220));
         menu.setVisibility(View.GONE);
         menu.setClickable(true);
-        frame.addView(menu, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        FrameLayout.LayoutParams mlp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        mlp.setMargins(0, Ui.dp(this, 50), Ui.dp(this, 8), 0);
+        frame.addView(menu, mlp);
         frame.setFilterTouchesWhenObscured(true); // ignore taps while another app draws over us (tapjacking)
         setContentView(frame);
-        getWindow().setStatusBarColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.62f));
-        getWindow().setNavigationBarColor(Ui.mix(Ui.accent(this), 0xFF000000, 0.86f));
+        getWindow().setStatusBarColor(Ui.mix(Ui.accent(this), Ui.MICA, 1f - 0.38f * 0.35f));
+        getWindow().setNavigationBarColor(Ui.MICA);
         tab = b != null ? b.getInt("tab", 0) : getIntent().getIntExtra("tab", 0);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 && !Prefs.on(this, "asked_notif", false)) {
@@ -219,55 +232,67 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     // ---------------------------------------------------------------- tabs
 
+
     private void buildNav() {
         boolean settings = tab == TAB_SETTINGS;
-        ((View) appLabel.getParent()).setVisibility(settings ? View.GONE : View.VISIBLE);
         pivotScroll.setVisibility(settings ? View.GONE : View.VISIBLE);
         pivot.removeAllViews();
         View sel = null;
         for (int i = 0; i < TABS.length; i++) {
             final int idx = i;
-            // pivot headers like Grovebook / Grove Music: 40sp light lowercase, the others faded
-            TextView t = Ui.text(this, TABS[i].toLowerCase(java.util.Locale.getDefault()), 40, 0xFFFFFFFF);
-            t.setTypeface(Ui.light());
-            t.setAlpha(i == tab ? 1f : 0.35f);
-            t.setSingleLine();
-            t.setIncludeFontPadding(false);
-            t.setPadding(0, 0, Ui.dp(this, 22), Ui.dp(this, 4));
+            boolean on = i == tab;
+            LinearLayout t = Ui.row(this);
+            t.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
+            int fg = on ? 0xFFFFFFFF : Ui.DIM;
+            t.addView(Ui.icon(this, TAB_ICONS[i], fg, 16));
+            TextView l = Ui.text(this, TABS[i], 14, fg);
+            if (on) l.setTypeface(Ui.semibold());
+            l.setSingleLine();
+            l.setPadding(Ui.dp(this, 8), 0, 0, 0);
+            t.addView(l);
+            t.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
             t.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { openTab(idx); } });
             t.setContentDescription(TABS[i]);
-            pivot.addView(t);
-            if (i == tab) sel = t;
+            pivot.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            if (on) sel = t;
         }
-        // panorama parallax: the big title moves 60dp per page
-        if (!settings) appLabel.animate().translationX(-tab * Ui.dp(this, 60)).setDuration(450).setInterpolator(Ui.WP_EASE).start();
-        if (sel != null) { final View fs = sel; pivotScroll.post(new Runnable() { @Override public void run() { pivotScroll.smoothScrollTo(Math.max(0, fs.getLeft() - Ui.dp(MainActivity.this, 18)), 0); } }); }
-        // app bar: round outlined buttons and "•••"
+        if (sel != null) {
+            final View fs = sel;
+            pivot.post(new Runnable() { @Override public void run() {
+                // the pill slides to the selected tab (Fluent selection indicator)
+                float x = fs.getLeft() + pivot.getPaddingLeft() * 0 + (fs.getWidth() - indicator.getWidth()) / 2f;
+                if (indicator.getTag() == null) { indicator.setTranslationX(x); indicator.setTag(1); }
+                else indicator.animate().translationX(x).setDuration(250).setInterpolator(Ui.FLUENT).start();
+                pivotScroll.smoothScrollTo(Math.max(0, fs.getLeft() - Ui.dp(MainActivity.this, 40)), 0);
+            } });
+        }
+        // command buttons in the title bar
         nav.removeAllViews();
         if (tab == 0) {
-            nav.addView(barButton(R.drawable.ic_search, "scan", new Runnable() { @Override public void run() { startScan(); } }));
-            nav.addView(barButton(R.drawable.ic_refresh, "update", new Runnable() { @Override public void run() { update(); } }));
+            nav.addView(barButton(R.drawable.ic_search, "Scan", new Runnable() { @Override public void run() { startScan(); } }));
+            nav.addView(barButton(R.drawable.ic_refresh, "Update", new Runnable() { @Override public void run() { update(); } }));
         }
-        if (!settings) nav.addView(barButton(R.drawable.ic_settings, "settings", new Runnable() { @Override public void run() { openTab(TAB_SETTINGS); } }));
-        TextView more = Ui.text(this, "\u2022\u2022\u2022", 20, 0xFFFFFFFF);
+        if (!settings) nav.addView(barButton(R.drawable.ic_settings, "Settings", new Runnable() { @Override public void run() { openTab(TAB_SETTINGS); } }));
+        else nav.addView(barButton(R.drawable.ic_back, "Back", new Runnable() { @Override public void run() { onBackPressed(); } }));
+        TextView more = Ui.text(this, "\u2022\u2022\u2022", 14, 0xFFFFFFFF);
         more.setGravity(Gravity.CENTER);
         more.setContentDescription("More");
+        more.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
         more.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { toggleMenu(); } });
-        nav.addView(more, new LinearLayout.LayoutParams(Ui.dp(this, 56), ViewGroup.LayoutParams.MATCH_PARENT));
+        nav.addView(more, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
     }
 
+    /** Fluent subtle command button: a glyph in a 40dp square that lights up under the finger. */
     private View barButton(int icon, String label, final Runnable r) {
         FrameLayout f = new FrameLayout(this);
-        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
-        g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        g.setStroke(Ui.dp(this, 1.5f), 0xFFFFFFFF);
-        f.setBackground(g);
+        f.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
         f.addView(Ui.icon(this, icon, 0xFFFFFFFF, 20), new FrameLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20), Gravity.CENTER));
         f.setContentDescription(label);
+        f.setTooltipText(label);
         f.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { menu.setVisibility(View.GONE); r.run(); } });
         Ui.tilt(f);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40));
-        lp.setMargins(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        lp.setMargins(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
         f.setLayoutParams(lp);
         return f;
     }
@@ -277,9 +302,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         menu.removeAllViews();
         String[] items = {"settings", "check a link", "update database", "scan now", "clear activity"};
         for (final String it : items) {
-            TextView t = Ui.text(this, it, 24, 0xFFFFFFFF);
-            t.setTypeface(Ui.light());
-            t.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 9));
+            TextView t = Ui.text(this, it.substring(0, 1).toUpperCase() + it.substring(1), 14, 0xFFFFFFFF);
+            t.setPadding(Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 24), Ui.dp(this, 10));
+            t.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     menu.setVisibility(View.GONE);
@@ -296,9 +321,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             menu.addView(t);
         }
         menu.setVisibility(View.VISIBLE);
-        menu.setTranslationY(Ui.dp(this, 120));
+        menu.setTranslationY(-Ui.dp(this, 12));
         menu.setAlpha(0f);
-        menu.animate().translationY(0).alpha(1f).setDuration(320).setInterpolator(Ui.WP_EASE).start();
+        menu.animate().translationY(0).alpha(1f).setDuration(167).setInterpolator(Ui.FLUENT).start();
     }
 
     void checkLinkPrompt() {
@@ -355,9 +380,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         int dir = shownTab < 0 ? 1 : (tab == TAB_SETTINGS || tab > shownTab || (shownTab == TABS.length - 1 && tab == 0)) ? 1 : -1;
         if (shownTab == 0 && tab == TABS.length - 1) dir = -1;
         shownTab = tab;
-        page.setTranslationX(dir * Ui.dp(this, 60));
+        page.setTranslationX(dir * Ui.dp(this, 40)); // Fluent page slide: short, quick, decelerating
         page.setAlpha(0f);
-        page.animate().translationX(0).alpha(1f).setDuration(380).setInterpolator(Ui.WP_EASE).start();
+        page.animate().translationX(0).alpha(1f).setDuration(250).setInterpolator(Ui.FLUENT).start();
         if (items != null) Ui.feather(items);
     }
 
@@ -418,7 +443,9 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
         // hero
         LinearLayout hero = Ui.card(this);
-        hero.setPadding(Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 18));
+        hero.setPadding(Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 20));
+        hero.setBackground(Ui.layer(this, Ui.LAYER)); // Fluent: the status sits on its own layered card
+        hero.setLayoutParams(Ui.margins(this, Ui.lp(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT), 16, 4, 16, 8));
         LinearLayout top = Ui.row(this);
         int icon, fg, bg;
         String title, sub;
@@ -439,7 +466,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             icon = R.drawable.ic_shield_check; fg = p.primary; bg = p.container;
             title = "You're protected"; sub = "New files and apps are checked as they arrive";
         }
-        top.addView(Ui.badge(this, icon, fg, bg, 64));
+        top.addView(Ui.badge(this, icon, fg, bg, 56));
         LinearLayout tt = Ui.col(this);
         tt.setPadding(Ui.dp(this, 16), 0, 0, 0);
         tt.addView(Ui.title(this, title, 22));

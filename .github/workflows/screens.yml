@@ -1,0 +1,31 @@
+name: screens
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: false
+          script: |
+            adb install -r apk/Groveguard-*.apk
+            adb shell am start -n org.grove.guard/.MainActivity --ei tab 0; sleep 6
+            adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s0.png
+            for t in 1 4 5 7; do adb shell am start -n org.grove.guard/.MainActivity --ei tab $t; sleep 4; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s$t.png; done
+            adb shell am start -n org.grove.guard/.MainActivity --ei tab 0; sleep 3
+            adb shell input keyevent KEYCODE_MENU || true
+      - name: Publish screenshots
+        if: always()
+        run: |
+          mkdir /tmp/out && cp *.png /tmp/out/ 2>/dev/null; cd /tmp/out
+          git init -q -b screens && git add -A && git -c user.name=ci -c user.email=ci@local commit -qm screens
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" screens
