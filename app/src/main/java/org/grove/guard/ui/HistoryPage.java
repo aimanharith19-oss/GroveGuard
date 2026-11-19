@@ -115,7 +115,7 @@ public class HistoryPage {
             TextView title = (TextView) ((LinearLayout) r.getChildAt(0)).getChildAt(0);
             title.setText((v.blocked ? "✕ " : "✓ ") + v.host);
             title.setTextSize(18);
-            title.setTextColor(v.blocked ? p.danger : 0xFFFFFFFF);
+            title.setTextColor(v.blocked ? p.danger : Ui.FG);
             card.addView(r);
         }
         if (n == 0) {

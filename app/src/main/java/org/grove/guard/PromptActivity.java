@@ -23,6 +23,7 @@ public class PromptActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        org.grove.guard.ui.Ui.apply(this); // dark or light Fluent theme
         Detect.Threat t = Detect.find(String.valueOf(getIntent().getStringExtra("id")));
         String a = getIntent().getAction();
         if (t == null || a == null) { finish(); return; }

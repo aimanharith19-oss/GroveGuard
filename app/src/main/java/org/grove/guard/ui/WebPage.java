@@ -128,8 +128,8 @@ public class WebPage {
         final LinearLayout inner = Ui.col(a);
         box.addView(inner);
         GradientDrawable bb = new GradientDrawable();
-        bb.setColor(0x33000000);
-        bb.setStroke(Ui.dp(a, 1), 0x33FFFFFF);
+        bb.setColor(Ui.SUBTLE);
+        bb.setStroke(Ui.dp(a, 1), Ui.STROKE);
         box.setBackground(new android.graphics.drawable.InsetDrawable(bb, Ui.dp(a, 1)));
         box.setPadding(Ui.dp(a, 8), Ui.dp(a, 4), Ui.dp(a, 8), Ui.dp(a, 4));
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
@@ -153,7 +153,7 @@ public class WebPage {
             TextView title = (TextView) ((LinearLayout) r.getChildAt(0)).getChildAt(0);
             title.setText((e.blocked ? "✕ " : "✓ ") + e.host); // keep the real host spelling
             title.setTextSize(18);
-            title.setTextColor(e.blocked ? p.danger : 0xFFFFFFFF);
+            title.setTextColor(e.blocked ? p.danger : Ui.FG);
             inner.addView(r);
         }
         if (n == 0) {

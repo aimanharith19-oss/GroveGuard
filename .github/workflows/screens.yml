@@ -23,7 +23,9 @@ jobs:
             adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s0.png
             for t in 1 4 5 7; do adb shell am start -n org.grove.guard/.MainActivity --ei tab $t; sleep 4; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s$t.png; done
             adb shell am start -n org.grove.guard/.MainActivity --ei tab 0; sleep 3
-            adb shell input tap 1035 150; sleep 2; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png menu.png
+            adb shell cmd uimode night yes; sleep 2
+            adb shell am force-stop org.grove.guard
+            for t in 0 7; do adb shell am start -n org.grove.guard/.MainActivity --ei tab $t; sleep 4; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png d$t.png; done
       - name: Publish screenshots
         if: always()
         run: |

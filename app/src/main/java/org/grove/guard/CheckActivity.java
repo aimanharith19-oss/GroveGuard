@@ -45,6 +45,7 @@ public class CheckActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        org.grove.guard.ui.Ui.apply(this); // dark or light Fluent theme
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         p = Ui.pal(this);
         FrameLayout root = new FrameLayout(this);

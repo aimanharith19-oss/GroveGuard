@@ -44,7 +44,20 @@ public class SettingsPage {
         this.col = col;
         col.addView(MainActivity.pageHeader(a, "Settings", "Back returns to where you were"));
 
-        // ---------------- accent colour (Windows Phone accents, as in Grove Music)
+        // ---------------- theme: light, dark, or follow the phone (Windows "Choose your mode")
+        col.addView(Ui.section(a, "Theme"));
+        LinearLayout modes = Ui.row(a);
+        modes.setPadding(Ui.dp(a, 16), 0, Ui.dp(a, 16), 0);
+        final String[] themeNames = {"Use phone setting", "Dark", "Light"};
+        int curTheme = Ui.themeMode(a);
+        for (int i = 0; i < themeNames.length; i++) {
+            final int m = i;
+            modes.addView(Ui.chip(a, themeNames[i], curTheme == i, new View.OnClickListener() {
+                @Override public void onClick(View v) { Prefs.sp(a).edit().putInt("theme", m).apply(); a.recreate(); }
+            }));
+        }
+        col.addView(modes);
+        // ---------------- accent colour (Windows accents)
         col.addView(Ui.section(a, "Accent colour"));
         LinearLayout grid = Ui.col(a);
         grid.setPadding(Ui.dp(a, 20), Ui.dp(a, 4), Ui.dp(a, 20), Ui.dp(a, 4));
@@ -56,7 +69,7 @@ public class SettingsPage {
             View sw = new View(a);
             android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
             g.setColor(color); g.setCornerRadius(Ui.dp(a, 4));
-            if (color == curAccent) g.setStroke(Ui.dp(a, 3), 0xFFFFFFFF);
+            if (color == curAccent) g.setStroke(Ui.dp(a, 3), Ui.FG);
             // drawn inside the box, so no edge of the outline gets cut off
             sw.setBackground(new android.graphics.drawable.InsetDrawable(g, Ui.dp(a, 2)));
             sw.setContentDescription("Accent colour " + (i + 1));

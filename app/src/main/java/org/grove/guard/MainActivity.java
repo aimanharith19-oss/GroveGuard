@@ -68,6 +68,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        org.grove.guard.ui.Ui.apply(this); // dark or light Fluent theme
         p = Ui.pal(this);
         FrameLayout frame = new FrameLayout(this);
         frame.setBackground(Ui.tintBackground(this, 0.38f));
@@ -77,7 +78,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         titleBar.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 6), 0);
         android.widget.ImageView logo = Ui.icon(this, R.drawable.ic_shield_check, Ui.accentOnDark(this), 20);
         titleBar.addView(logo);
-        appLabel = Ui.text(this, "Groveguard", 18, 0xFFFFFFFF);
+        appLabel = Ui.text(this, "Groveguard", 18, Ui.FG);
         appLabel.setTypeface(Ui.semibold());
         appLabel.setSingleLine();
         appLabel.setPadding(Ui.dp(this, 12), 0, 0, 0);
@@ -243,7 +244,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
             boolean on = i == tab;
             LinearLayout t = Ui.row(this);
             t.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
-            int fg = on ? 0xFFFFFFFF : Ui.DIM;
+            int fg = on ? Ui.FG : Ui.DIM;
             t.addView(Ui.icon(this, TAB_ICONS[i], fg, 16));
             TextView l = Ui.text(this, TABS[i], 14, fg);
             if (on) l.setTypeface(Ui.semibold());
@@ -274,7 +275,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         }
         if (!settings) nav.addView(barButton(R.drawable.ic_settings, "Settings", new Runnable() { @Override public void run() { openTab(TAB_SETTINGS); } }));
         else nav.addView(barButton(R.drawable.ic_back, "Back", new Runnable() { @Override public void run() { onBackPressed(); } }));
-        TextView more = Ui.text(this, "\u2022\u2022\u2022", 14, 0xFFFFFFFF);
+        TextView more = Ui.text(this, "\u2022\u2022\u2022", 14, Ui.FG);
         more.setGravity(Gravity.CENTER);
         more.setContentDescription("More");
         more.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
@@ -286,7 +287,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
     private View barButton(int icon, String label, final Runnable r) {
         FrameLayout f = new FrameLayout(this);
         f.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
-        f.addView(Ui.icon(this, icon, 0xFFFFFFFF, 20), new FrameLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20), Gravity.CENTER));
+        f.addView(Ui.icon(this, icon, Ui.FG, 20), new FrameLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20), Gravity.CENTER));
         f.setContentDescription(label);
         f.setTooltipText(label);
         f.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { menu.setVisibility(View.GONE); r.run(); } });
@@ -302,7 +303,7 @@ public class MainActivity extends Activity implements Sigs.Listener, Scanner.Lis
         menu.removeAllViews();
         String[] items = {"settings", "check a link", "update database", "scan now", "clear activity"};
         for (final String it : items) {
-            TextView t = Ui.text(this, it.substring(0, 1).toUpperCase() + it.substring(1), 14, 0xFFFFFFFF);
+            TextView t = Ui.text(this, it.substring(0, 1).toUpperCase() + it.substring(1), 14, Ui.FG);
             t.setPadding(Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 24), Ui.dp(this, 10));
             t.setBackground(Ui.ripple(this, 0, Ui.dp(this, 4)));
             t.setOnClickListener(new View.OnClickListener() {

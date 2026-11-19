@@ -56,10 +56,32 @@ public final class Ui {
     /** Fluent "fast out, decelerate" curve (0, 0, 0, 1). The old name is kept so every page picks it up. */
     public static final TimeInterpolator WP_EASE = new PathInterpolator(0f, 0f, 0f, 1f);
     public static final TimeInterpolator FLUENT = WP_EASE;
-    /** Fluent secondary text (TextFillColorSecondary on dark). */
-    public static final int DIM = 0xFFC5C5C5;
-    /** Mica (dark), layer (card) and their hairline stroke. */
-    public static final int MICA = 0xFF202020, LAYER = 0xFF2B2B2B, LAYER_ALT = 0xFF323232, STROKE = 0x14FFFFFF, SUBTLE = 0x0FFFFFFF;
+    /** Theme colours, set by {@link #apply} (dark or light Fluent): text, secondary text, Mica, card layers, hairline, control fill, press. */
+    public static int FG = 0xFFFFFFFF, DIM = 0xFFC5C5C5, MICA = 0xFF202020, LAYER = 0xFF2B2B2B, LAYER_ALT = 0xFF323232,
+            STROKE = 0x14FFFFFF, SUBTLE = 0x0FFFFFFF, CTRL_STROKE = 0x18FFFFFF, PRESS = 0x14FFFFFF, FIELD_FOCUS = 0xFF1F1F1F;
+    public static boolean LIGHT = false;
+
+    /** 0 = follow the phone, 1 = dark, 2 = light. */
+    public static int themeMode(Context c) { return Prefs.sp(c).getInt("theme", 0); }
+
+    /** Picks dark or light for this screen (call in every activity's onCreate, before building views). */
+    public static void apply(android.app.Activity a) {
+        int m = themeMode(a);
+        LIGHT = m == 2 || (m == 0 && (a.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                != android.content.res.Configuration.UI_MODE_NIGHT_YES);
+        if (LIGHT) {
+            FG = 0xFF1B1B1B; DIM = 0xFF5F5F5F; MICA = 0xFFF3F3F3; LAYER = 0xFFFBFBFB; LAYER_ALT = 0xFFFFFFFF;
+            STROKE = 0x14000000; SUBTLE = 0xB3FFFFFF; CTRL_STROKE = 0x1F000000; PRESS = 0x0F000000; FIELD_FOCUS = 0xFFFFFFFF;
+        } else {
+            FG = 0xFFFFFFFF; DIM = 0xFFC5C5C5; MICA = 0xFF202020; LAYER = 0xFF2B2B2B; LAYER_ALT = 0xFF323232;
+            STROKE = 0x14FFFFFF; SUBTLE = 0x0FFFFFFF; CTRL_STROKE = 0x18FFFFFF; PRESS = 0x14FFFFFF; FIELD_FOCUS = 0xFF1F1F1F;
+        }
+        android.view.Window w = a.getWindow();
+        w.setBackgroundDrawable(new ColorDrawable(MICA));
+        int f = w.getDecorView().getSystemUiVisibility() & ~(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        if (LIGHT) f |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        w.getDecorView().setSystemUiVisibility(f);
+    }
 
     public static final class Pal {
         public int bg, card, cardAlt, text, sub, line, primary, onPrimary, container, onContainer, danger, dangerBg, warn, warnBg, accent;
@@ -69,7 +91,7 @@ public final class Ui {
     public static int accent(Context c) { return Prefs.sp(c).getInt("accent", DEFAULT_ACCENT); }
 
     /** The accent as Windows draws it on dark backgrounds (a lighter shade, readable on Mica). */
-    public static int accentOnDark(Context c) { return mix(accent(c), 0xFFFFFFFF, 0.28f); }
+    public static int accentOnDark(Context c) { return LIGHT ? mix(accent(c), 0xFF000000, 0.18f) : mix(accent(c), 0xFFFFFFFF, 0.28f); }
 
     /** Black or white, whichever reads better on this colour. */
     public static int onColor(int color) {
@@ -81,9 +103,11 @@ public final class Ui {
         Pal p = new Pal();
         int a = accent(c);
         p.accent = a;
-        p.bg = MICA; p.card = LAYER; p.cardAlt = LAYER_ALT; p.text = 0xFFFFFFFF; p.sub = DIM; p.line = STROKE;
-        p.primary = accentOnDark(c); p.onPrimary = onColor(p.primary); p.container = mix(a, MICA, 0.7f); p.onContainer = 0xFFFFFFFF;
-        p.danger = 0xFFFF99A4; p.dangerBg = 0xFF442726; p.warn = 0xFFFCE100; p.warnBg = 0xFF433519;
+        p.dark = !LIGHT;
+        p.bg = MICA; p.card = LAYER; p.cardAlt = LAYER_ALT; p.text = FG; p.sub = DIM; p.line = STROKE;
+        p.primary = accentOnDark(c); p.onPrimary = onColor(p.primary); p.container = mix(a, MICA, 0.7f); p.onContainer = FG;
+        if (LIGHT) { p.danger = 0xFFC42B1C; p.dangerBg = 0xFFFDE7E9; p.warn = 0xFF9D5D00; p.warnBg = 0xFFFFF4CE; }
+        else { p.danger = 0xFFFF99A4; p.dangerBg = 0xFF442726; p.warn = 0xFFFCE100; p.warnBg = 0xFF433519; }
         return p;
     }
 
@@ -127,7 +151,7 @@ public final class Ui {
 
     public static Drawable ripple(Context c, int bg, float radius) {
         GradientDrawable mask = round(0xFFFFFFFF, radius);
-        return new android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(0x14FFFFFF), bg == 0 ? null : round(bg, radius), mask);
+        return new android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(PRESS), bg == 0 ? null : round(bg, radius), mask);
     }
 
     /** Sentence case, as Windows writes labels ("Scan now", not "scan now" or "SCAN NOW"). */
@@ -214,7 +238,7 @@ public final class Ui {
 
     /** Title (Fluent type ramp: subtitle 20 / body-strong 14, semibold, sentence case). */
     public static TextView title(Context c, String s, float sp) {
-        TextView t = text(c, lower(s), sp >= 20 ? 20 : Math.max(sp, 15), 0xFFFFFFFF);
+        TextView t = text(c, lower(s), sp >= 20 ? 20 : Math.max(sp, 15), FG);
         t.setTypeface(semibold());
         return t;
     }
@@ -222,7 +246,7 @@ public final class Ui {
     /** Group heading above a set of cards ("Body strong", like Windows Settings). */
     public static TextView section(Context c, String s) {
         String low = s.toLowerCase(Locale.getDefault());
-        TextView t = text(c, lower(low), 14, 0xFFFFFFFF);
+        TextView t = text(c, lower(low), 14, FG);
         t.setTypeface(semibold());
         t.setPadding(dp(c, 20), dp(c, 20), dp(c, 20), dp(c, 8));
         return t;
@@ -234,7 +258,7 @@ public final class Ui {
         l.setPadding(dp(c, 20), dp(c, 14), dp(c, 20), dp(c, 6));
         TextView app = text(c, "Groveguard", 12, DIM);
         l.addView(app);
-        TextView t = text(c, lower(title), 28, 0xFFFFFFFF);
+        TextView t = text(c, lower(title), 28, FG);
         t.setTypeface(semibold());
         t.setIncludeFontPadding(false);
         t.setSingleLine();
@@ -256,14 +280,14 @@ public final class Ui {
         FrameLayout f = new FrameLayout(c);
         f.setBackground(round(alpha(fg, 0.2f), dp(c, sizeDp >= 40 ? 8 : 6)));
         int s = Math.round(sizeDp * 0.5f);
-        f.addView(icon(c, res, mix(fg, 0xFFFFFFFF, 0.3f), s), new FrameLayout.LayoutParams(dp(c, s), dp(c, s), Gravity.CENTER));
+        f.addView(icon(c, res, LIGHT ? fg : mix(fg, 0xFFFFFFFF, 0.3f), s), new FrameLayout.LayoutParams(dp(c, s), dp(c, s), Gravity.CENTER));
         f.setLayoutParams(lp(dp(c, sizeDp), dp(c, sizeDp)));
         return f;
     }
 
     /** Fluent button. {@code style}: 0 = accent, 1 = standard, 2 = subtle (text only), 3 = danger. */
     public static TextView button(Context c, String label, int style, View.OnClickListener l) {
-        TextView b = text(c, lower(label), 14, 0xFFFFFFFF);
+        TextView b = text(c, lower(label), 14, FG);
         b.setGravity(Gravity.CENTER);
         b.setPadding(dp(c, 16), 0, dp(c, 16), 0);
         b.setMinHeight(dp(c, 40));
@@ -272,8 +296,8 @@ public final class Ui {
         b.setTypeface(style == 0 || style == 3 ? semibold() : light());
         GradientDrawable g = round(0, dp(c, 4));
         if (style == 0) { int a = accentOnDark(c); g.setColor(a); b.setTextColor(onColor(a)); }
-        else if (style == 3) { g.setColor(0xFFC42B1C); }
-        else if (style == 1) { g.setColor(SUBTLE); g.setStroke(Math.max(1, dp(c, 1) / 2), 0x18FFFFFF); }
+        else if (style == 3) { g.setColor(0xFFC42B1C); b.setTextColor(0xFFFFFFFF); }
+        else if (style == 1) { g.setColor(SUBTLE); g.setStroke(Math.max(1, dp(c, 1) / 2), CTRL_STROKE); }
         else { g.setColor(0); b.setTextColor(accentOnDark(c)); }
         b.setBackground(g);
         b.setOnClickListener(l);
@@ -304,12 +328,12 @@ public final class Ui {
         rlp.bottomMargin = dp(c, 4);
         r.setLayoutParams(rlp);
         if (iconRes != 0) {
-            View ic = icon(c, iconRes, 0xFFFFFFFF, 20);
+            View ic = icon(c, iconRes, FG, 20);
             r.addView(ic);
             ((LinearLayout.LayoutParams) ic.getLayoutParams()).rightMargin = dp(c, 16);
         }
         LinearLayout t = col(c);
-        TextView tt = text(c, lower(title), 15, 0xFFFFFFFF);
+        TextView tt = text(c, lower(title), 15, FG);
         t.addView(tt);
         TextView st = null;
         if (sub != null) {
@@ -348,17 +372,17 @@ public final class Ui {
     public static void tintSwitch(Context c, Switch s) {
         int[][] st = {{android.R.attr.state_checked}, {}};
         int a = accentOnDark(c);
-        s.setThumbTintList(new ColorStateList(st, new int[]{onColor(a), 0xFFCFCFCF}));
-        s.setTrackTintList(new ColorStateList(st, new int[]{a, 0xFF3A3A3A}));
+        s.setThumbTintList(new ColorStateList(st, new int[]{onColor(a), LIGHT ? 0xFF5F5F5F : 0xFFCFCFCF}));
+        s.setTrackTintList(new ColorStateList(st, new int[]{a, LIGHT ? 0xFFE0E0E0 : 0xFF3A3A3A}));
         s.setTrackTintMode(android.graphics.PorterDuff.Mode.SRC);
     }
 
     /** Toggle button (Fluent): accent fill when selected, a subtle filled outline otherwise. */
     public static TextView chip(Context c, String label, boolean on, View.OnClickListener l) {
-        TextView t = text(c, lower(label), 14, 0xFFFFFFFF);
+        TextView t = text(c, lower(label), 14, FG);
         GradientDrawable g = round(0, dp(c, 4));
         if (on) { int a = accentOnDark(c); g.setColor(a); t.setTextColor(onColor(a)); t.setTypeface(semibold()); }
-        else { g.setColor(SUBTLE); g.setStroke(Math.max(1, dp(c, 1) / 2), 0x18FFFFFF); }
+        else { g.setColor(SUBTLE); g.setStroke(Math.max(1, dp(c, 1) / 2), CTRL_STROKE); }
         t.setBackground(g);
         t.setPadding(dp(c, 14), dp(c, 8), dp(c, 14), dp(c, 8));
         t.setOnClickListener(l);
@@ -381,26 +405,26 @@ public final class Ui {
         final EditText e = new EditText(c);
         e.setHint(hint == null ? null : lower(hint));
         e.setText(value);
-        e.setTextColor(0xFFFFFFFF);
-        e.setHintTextColor(0x8AFFFFFF);
+        e.setTextColor(FG);
+        e.setHintTextColor(alpha(FG, 0.55f));
         e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         e.setSingleLine();
         e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         final int r = dp(c, 4);
-        final GradientDrawable fill = round(0x0FFFFFFF, r);
-        fill.setStroke(Math.max(1, dp(c, 1) / 2), 0x18FFFFFF);
+        final GradientDrawable fill = round(SUBTLE, r);
+        fill.setStroke(Math.max(1, dp(c, 1) / 2), CTRL_STROKE);
         final GradientDrawable line = round(0, 0);
         final android.graphics.drawable.LayerDrawable bg = new android.graphics.drawable.LayerDrawable(new Drawable[]{fill, line});
         bg.setLayerGravity(1, Gravity.BOTTOM | Gravity.FILL_HORIZONTAL);
         bg.setLayerHeight(1, dp(c, 1));
         bg.setLayerInset(1, r / 2, 0, r / 2, 0);
-        line.setColor(0x8AFFFFFF);
+        line.setColor(alpha(FG, 0.55f));
         e.setBackground(bg);
         e.setPadding(dp(c, 12), dp(c, 10), dp(c, 12), dp(c, 10));
         e.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override public void onFocusChange(View v, boolean has) {
-                fill.setColor(has ? 0xFF1F1F1F : 0x0FFFFFFF);
-                line.setColor(has ? accentOnDark(v.getContext()) : 0x8AFFFFFF);
+                fill.setColor(has ? FIELD_FOCUS : SUBTLE);
+                line.setColor(has ? accentOnDark(v.getContext()) : alpha(FG, 0.55f));
                 bg.setLayerHeight(1, dp(v.getContext(), has ? 2 : 1));
             }
         });
@@ -413,7 +437,7 @@ public final class Ui {
 
     /** AlertDialog restyled as a Fluent ContentDialog: centred rounded card, semibold title, button row on a darker footer. */
     public static AlertDialog.Builder dialog(final Context c) {
-        return new AlertDialog.Builder(c, android.R.style.Theme_DeviceDefault_Dialog_Alert) {
+        return new AlertDialog.Builder(c, LIGHT ? android.R.style.Theme_DeviceDefault_Light_Dialog_Alert : android.R.style.Theme_DeviceDefault_Dialog_Alert) {
             @Override public AlertDialog create() {
                 final AlertDialog d = super.create();
                 android.view.Window w = d.getWindow();
@@ -450,13 +474,13 @@ public final class Ui {
                 title.setText(lower(String.valueOf(title.getText())));
                 title.setTypeface(semibold());
                 title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-                title.setTextColor(0xFFFFFFFF);
+                title.setTextColor(FG);
                 title.setSingleLine(false);
             }
             TextView msg = (TextView) d.findViewById(android.R.id.message);
-            if (msg != null) { msg.setTextColor(0xFFFFFFFF); msg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14); msg.setLineSpacing(0, 1.15f); }
+            if (msg != null) { msg.setTextColor(FG); msg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14); msg.setLineSpacing(0, 1.15f); }
             ListView lv = d.getListView();
-            if (lv != null) { lv.setDivider(null); lv.setSelector(round(0x0FFFFFFF, dp(c, 4))); }
+            if (lv != null) { lv.setDivider(null); lv.setSelector(round(PRESS, dp(c, 4))); }
             // Replace Android's button bar with Fluent buttons on the dialog's darker footer, side by side.
             LinearLayout bar = row(c);
             bar.setPadding(dp(c, 20), dp(c, 20), dp(c, 20), dp(c, 20));
