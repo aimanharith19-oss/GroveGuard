@@ -18,11 +18,12 @@ jobs:
           disable-animations: false
           script: |
             adb install -r apk/Groveguard-*.apk
+            adb shell pm grant org.grove.guard android.permission.POST_NOTIFICATIONS || true
             adb shell am start -n org.grove.guard/.MainActivity --ei tab 0; sleep 6
             adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s0.png
             for t in 1 4 5 7; do adb shell am start -n org.grove.guard/.MainActivity --ei tab $t; sleep 4; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png s$t.png; done
             adb shell am start -n org.grove.guard/.MainActivity --ei tab 0; sleep 3
-            adb shell input keyevent KEYCODE_MENU || true
+            adb shell input tap 1035 150; sleep 2; adb shell screencap -p /sdcard/s.png; adb pull /sdcard/s.png menu.png
       - name: Publish screenshots
         if: always()
         run: |
