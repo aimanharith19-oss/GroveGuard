@@ -55,7 +55,7 @@ public class SettingsPage {
             final int color = Ui.ACCENTS[i];
             View sw = new View(a);
             android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
-            g.setColor(color);
+            g.setColor(color); g.setCornerRadius(Ui.dp(a, 4));
             if (color == curAccent) g.setStroke(Ui.dp(a, 3), 0xFFFFFFFF);
             // drawn inside the box, so no edge of the outline gets cut off
             sw.setBackground(new android.graphics.drawable.InsetDrawable(g, Ui.dp(a, 2)));
